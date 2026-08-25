@@ -155,6 +155,10 @@ export class PatternGenerator {
       plan,
       allowPowerUp,
       obstacle: (defId, lane, d, motion?: MotionSpec) => {
+        if (!Number.isFinite(lane) || !Number.isFinite(d)) {
+          if (CONFIG.debug.logPatterns) console.warn(`[gen] ${pattern.id} placed ${defId} at a non-finite lane/d; skipped`);
+          return;
+        }
         lane = Math.max(0, Math.min(laneCount - 1, Math.round(lane)));
         plan.obstacles.push({ defId, lane, d, motion });
       },
