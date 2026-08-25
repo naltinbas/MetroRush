@@ -213,10 +213,11 @@ export class ReachabilityValidator {
     const mv = CONFIG.movement;
     const airTime = (2 * mv.jumpVelocity) / Math.abs(mv.gravity);
     return {
-      // Feet stay above 1.15 m from 0.11 s to 0.64 s after takeoff; taking off
-      // up to 0.12 s before the front leaves at least 0.5 s of cover at the slow end.
-      jumpCover: 0.5 * speedLow,
-      slideCover: 0.9 * mv.slideDuration * speedLow,
+      // Feet stay above 1.15 m from 0.11 s to 0.64 s after takeoff, and players
+      // press up to 0.2 s early, so at least 0.32 s of cover past the front is
+      // guaranteed; a slide pressed 0.2 s early still keeps them low for 0.45 s.
+      jumpCover: 0.32 * speedLow,
+      slideCover: (mv.slideDuration - 0.2) * speedLow,
       step: cfg.gridStep,
       reaction: cfg.reactionTime * speedHigh,
       chainReaction: cfg.laneChainReactionTime * speedHigh,

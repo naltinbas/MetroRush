@@ -231,9 +231,9 @@ export const PATTERNS: readonly SegmentPattern[] = [
       const a = ctx.randomLane();
       ctx.obstacle('sign_low', a, 6);
       const leftmost = ctx.rng.int(0, ctx.laneCount - 2);
-      ctx.obstacle('bar', leftmost, 19);
+      ctx.obstacle('bar', leftmost, 16);
       ctx.shardLow(a, 6);
-      ctx.shardLow(leftmost === a ? leftmost + 1 : leftmost, 19);
+      ctx.shardLow(leftmost === a ? leftmost + 1 : leftmost, 16);
     },
   },
   {
