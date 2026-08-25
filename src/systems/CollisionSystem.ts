@@ -151,6 +151,7 @@ export class CollisionSystem {
         if (box.maxX + m > x - hw && box.minX - m < x + hw && box.maxY + v > y && box.minY - v < y + height) near = true;
       }
       if (hit) {
+        ob.nearMissCandidate = false;
         this.resolveHit(ob, box, seg);
         continue;
       }
@@ -192,7 +193,10 @@ export class CollisionSystem {
       this.score.penalty();
       return;
     }
-    if (p.invulnerable) return;
+    if (p.invulnerable) {
+      ob.hit = true;
+      return;
+    }
     // Feet barely clipping the top of a jumpable obstacle: forgive with a stumble.
     if (def.avoid === 'jump' && p.airborne && p.y > box.maxY - CONFIG.player.clipTolerance) {
       ob.hit = true;
