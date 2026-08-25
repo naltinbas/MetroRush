@@ -193,6 +193,10 @@ export class PatternGenerator {
         for (let l = 0; l < laneCount; l++) if (!exclude.includes(l)) out.push(l);
         return out;
       },
+      pickOther: (...exclude) => {
+        const out = ctx.otherLanes(...exclude);
+        return out.length > 0 ? rng.pick(out) : rng.int(0, laneCount - 1);
+      },
     };
     pattern.spawn(ctx);
     return plan;

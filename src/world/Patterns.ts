@@ -30,6 +30,8 @@ export interface PatternContext {
   powerUp(lane: number, d: number): void;
   randomLane(): number;
   otherLanes(...exclude: number[]): number[];
+  /** A random lane not in `exclude`, or any lane when none is left. */
+  pickOther(...exclude: number[]): number;
 }
 
 export interface SegmentPattern {
@@ -72,7 +74,7 @@ export const PATTERNS: readonly SegmentPattern[] = [
     spawn: (ctx) => {
       const lane = ctx.randomLane();
       ctx.shardLine(lane, 3, 12, 2.2);
-      if (ctx.rng.chance(0.5)) ctx.shardLine(ctx.rng.pick(ctx.otherLanes(lane)), 13, L() - 3, 2.2);
+      if (ctx.rng.chance(0.5)) ctx.shardLine(ctx.pickOther(lane), 13, L() - 3, 2.2);
       if (ctx.rng.chance(0.6)) ctx.powerUp(ctx.randomLane(), L() - 6);
     },
   },
@@ -88,7 +90,7 @@ export const PATTERNS: readonly SegmentPattern[] = [
       const d = ctx.rng.range(9, 15);
       ctx.obstacle('crate', lane, d);
       ctx.shardArc(lane, d);
-      const other = ctx.rng.pick(ctx.otherLanes(lane));
+      const other = ctx.pickOther(lane);
       ctx.shardLine(other, d - 4, d + 4, 2);
     },
   },
@@ -104,7 +106,7 @@ export const PATTERNS: readonly SegmentPattern[] = [
       const d = ctx.rng.range(8, 16);
       ctx.obstacle('cart', lane, d);
       ctx.shardArc(lane, d);
-      if (ctx.rng.chance(0.5)) ctx.obstacle('cones', ctx.rng.pick(ctx.otherLanes(lane)), d + ctx.rng.range(-3, 3));
+      if (ctx.rng.chance(0.5)) ctx.obstacle('cones', ctx.pickOther(lane), d + ctx.rng.range(-3, 3));
     },
   },
   {
@@ -119,7 +121,7 @@ export const PATTERNS: readonly SegmentPattern[] = [
       const d = ctx.rng.range(8, 15);
       ctx.obstacle('rail_panel', lane, d);
       ctx.shardArc(lane, d);
-      const side = ctx.rng.pick(ctx.otherLanes(lane));
+      const side = ctx.pickOther(lane);
       ctx.shardLine(side, 3, L() - 3, 2.6, 1.0);
     },
   },
@@ -135,7 +137,7 @@ export const PATTERNS: readonly SegmentPattern[] = [
       const d = ctx.rng.range(8, 16);
       ctx.obstacle('sign_low', lane, d);
       ctx.shardLow(lane, d);
-      ctx.shardLine(ctx.rng.pick(ctx.otherLanes(lane)), d + 3, L() - 2, 2.2);
+      ctx.shardLine(ctx.pickOther(lane), d + 3, L() - 2, 2.2);
     },
   },
   {
@@ -165,7 +167,7 @@ export const PATTERNS: readonly SegmentPattern[] = [
       const def = ctx.rng.pick(['gate', 'crate_stack', 'container'] as const);
       const d = def === 'container' ? ctx.rng.range(6, 16) : ctx.rng.range(6, 18);
       ctx.obstacle(def, lane, d);
-      const free = ctx.rng.pick(ctx.otherLanes(lane));
+      const free = ctx.pickOther(lane);
       ctx.shardLine(free, Math.max(2, d - 5), Math.min(L() - 2, d + 6), 2.2);
     },
   },
@@ -196,9 +198,9 @@ export const PATTERNS: readonly SegmentPattern[] = [
       const lane = ctx.randomLane();
       const d = ctx.rng.range(7, 17);
       ctx.obstacle('tram_parked', lane, d);
-      const free = ctx.rng.pick(ctx.otherLanes(lane));
+      const free = ctx.pickOther(lane);
       ctx.shardLine(free, 3, L() - 3, 2.4);
-      if (ctx.rng.chance(0.35)) ctx.obstacle('cones', ctx.rng.pick(ctx.otherLanes(lane, free)), ctx.rng.range(6, 18));
+      if (ctx.rng.chance(0.35)) ctx.obstacle('cones', ctx.pickOther(lane, free), ctx.rng.range(6, 18));
     },
   },
   {
@@ -213,7 +215,7 @@ export const PATTERNS: readonly SegmentPattern[] = [
       const lane = ctx.randomLane();
       const travel = 8;
       ctx.obstacle('tram_moving', lane, L() - 5.5, { type: 'oncoming', speed: 11, travel });
-      const free = ctx.rng.pick(ctx.otherLanes(lane));
+      const free = ctx.pickOther(lane);
       ctx.shardLine(free, 4, L() - 4, 2.4);
     },
   },
@@ -226,7 +228,7 @@ export const PATTERNS: readonly SegmentPattern[] = [
     blockedLanes: [],
     spawn: (ctx) => {
       const a = ctx.randomLane();
-      const b = ctx.rng.pick(ctx.otherLanes(a));
+      const b = ctx.pickOther(a);
       ctx.obstacle('crate', a, 6);
       ctx.obstacle(ctx.rng.pick(['cart', 'rail_panel']), b, 19);
       ctx.shardArc(a, 6);
@@ -312,7 +314,7 @@ export const PATTERNS: readonly SegmentPattern[] = [
       const d = ctx.rng.range(8, 15);
       ctx.obstacle('arm', lane, d);
       ctx.shardLow(lane, d);
-      const cl = ctx.rng.pick(ctx.otherLanes(lane));
+      const cl = ctx.pickOther(lane);
       ctx.obstacle('cones', cl, d + 1);
     },
   },
@@ -363,7 +365,7 @@ export const PATTERNS: readonly SegmentPattern[] = [
       ctx.obstacle('crate', lane, 8);
       ctx.shardArc(lane, 8);
       ctx.powerUp(lane, 15);
-      ctx.shardLine(ctx.rng.pick(ctx.otherLanes(lane)), 4, 12, 2.2);
+      ctx.shardLine(ctx.pickOther(lane), 4, 12, 2.2);
     },
   },
   {
