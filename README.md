@@ -1,4 +1,4 @@
-# Metro Rush
+<p align="center"><img src="screenshots/logo.png" alt="Metro Rush" width="720"></p>
 
 Browser endless runner in TypeScript and Three.js. You play a courier sprinting along an elevated skyrail maintenance corridor above a neon city: three lanes (the code reads `CONFIG.lanes.count` everywhere, but the pattern catalogue is written for three), jump the crates, slide under the pipes, get out of the way of the trams, grab energy shards and power-ups. It runs on the keyboard alone, has no backend and downloads no assets. Every mesh, texture and sound is generated in code when the page loads.
 
