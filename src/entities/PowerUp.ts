@@ -1,5 +1,6 @@
-import type * as THREE from 'three';
+import * as THREE from 'three';
 import { laneX } from '../game/Config';
+import { disposeObject } from '../utils/MeshKit';
 import { ObjectPool } from '../utils/ObjectPool';
 import { Entity } from './Entity';
 import { POWER_UP_DEFS, POWER_UP_IDS, type PowerUpDef, type PowerUpId } from './PowerUpDefinitions';
@@ -60,5 +61,17 @@ export class PowerUpFactory {
 
   acquire(id: PowerUpId): PowerUpPickup {
     return this.pools.get(id)!.acquire();
+  }
+
+  dispose(): void {
+    for (const pool of this.pools.values()) {
+      pool.forEachCreated((p) => {
+        disposeObject(p.object);
+        p.object.traverse((o) => {
+          const sprite = o as THREE.Sprite;
+          if (sprite.isSprite) sprite.material.dispose();
+        });
+      });
+    }
   }
 }

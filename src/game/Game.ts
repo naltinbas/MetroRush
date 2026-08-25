@@ -52,6 +52,13 @@ export class Game {
   private dustTimer = 0;
   private running = false;
   private contextLost = false;
+  private readonly onWindowResize = (): void => this.onResize();
+  private readonly onVisibilityChange = (): void => {
+    if (document.hidden && this.state === GameState.PLAYING) {
+      if (this.player.crashed) this.gameOver();
+      else this.pause();
+    }
+  };
 
   constructor(private readonly container: HTMLElement) {
     // Quality has to be known before anything that sizes buffers is built.
@@ -108,13 +115,8 @@ export class Game {
     this.ui.showDebug(CONFIG.debug.enabled);
     this.ui.updateMenuStats(this.save.get('bestScore'), this.save.get('bestDistance'), this.save.get('runs'));
 
-    window.addEventListener('resize', () => this.onResize());
-    document.addEventListener('visibilitychange', () => {
-      if (document.hidden && this.state === GameState.PLAYING) {
-        if (this.player.crashed) this.gameOver();
-        else this.pause();
-      }
-    });
+    window.addEventListener('resize', this.onWindowResize);
+    document.addEventListener('visibilitychange', this.onVisibilityChange);
     this.onResize();
   }
 
@@ -487,12 +489,19 @@ export class Game {
     this.cameraController.resize(w / h);
   }
 
+  /** Tears everything down so a host page can build a fresh Game later. */
   dispose(): void {
     this.running = false;
+    window.removeEventListener('resize', this.onWindowResize);
+    document.removeEventListener('visibilitychange', this.onVisibilityChange);
     this.input.detach();
-    this.audio.stopMusic();
+    this.audio.dispose();
+    this.collision.dispose();
+    this.player.model.dispose();
     this.world.dispose();
     this.particles.dispose();
+    this.scene.remove(this.particles.mesh);
     this.renderer.dispose();
+    this.renderer.domElement.remove();
   }
 }

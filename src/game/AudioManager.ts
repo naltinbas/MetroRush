@@ -108,6 +108,13 @@ export class AudioManager {
     }
   }
 
+  /** Releases the AudioContext. The manager is unusable afterwards. */
+  dispose(): void {
+    this.stopMusic();
+    if (this.ctx) void this.ctx.close();
+    this.ctx = null;
+  }
+
   suspend(): void {
     this.paused = true;
     if (this.ctx && this.ctx.state === 'running') void this.ctx.suspend();

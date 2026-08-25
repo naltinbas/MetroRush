@@ -139,6 +139,7 @@ export class TrackBuilder {
     this.deckMaterial.dispose();
     this.laneStripMaterial.dispose();
     this.ledgeStripMaterial.dispose();
+    this.lampSpriteMaterial.map?.dispose();
     this.lampSpriteMaterial.dispose();
     this.deckTexture.dispose();
   }

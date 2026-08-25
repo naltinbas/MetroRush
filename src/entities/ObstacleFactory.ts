@@ -1,3 +1,4 @@
+import { disposeObject } from '../utils/MeshKit';
 import { ObjectPool } from '../utils/ObjectPool';
 import { Obstacle } from './Obstacle';
 import { getObstacleDef, OBSTACLE_DEFS } from './ObstacleDefinitions';
@@ -28,6 +29,10 @@ export class ObstacleFactory {
       throw new Error(`No pool for obstacle ${defId}`);
     }
     return pool.acquire();
+  }
+
+  dispose(): void {
+    for (const pool of this.pools.values()) pool.forEachCreated((o) => disposeObject(o.object));
   }
 
   stats(): string {

@@ -4,6 +4,7 @@
  */
 export class ObjectPool<T> {
   private free: T[] = [];
+  private readonly all: T[] = [];
   private total = 0;
 
   constructor(
@@ -15,7 +16,9 @@ export class ObjectPool<T> {
     const item = this.free.pop();
     if (item !== undefined) return item;
     this.total++;
-    return this.create();
+    const made = this.create();
+    this.all.push(made);
+    return made;
   }
 
   release(item: T): void {
@@ -24,8 +27,17 @@ export class ObjectPool<T> {
   }
 
   prewarm(count: number): void {
-    for (let i = 0; i < count; i++) this.free.push(this.create());
+    for (let i = 0; i < count; i++) {
+      const made = this.create();
+      this.all.push(made);
+      this.free.push(made);
+    }
     this.total += count;
+  }
+
+  /** Every instance this pool ever created, free or not. For teardown. */
+  forEachCreated(fn: (item: T) => void): void {
+    for (let i = 0; i < this.all.length; i++) fn(this.all[i]);
   }
 
   get size(): number {

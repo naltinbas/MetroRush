@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { disposeObject } from '../utils/MeshKit';
 import { makeGlowTexture } from '../utils/Textures';
 
 /**
@@ -163,6 +164,15 @@ export class PlayerModel {
    * Drives the pose. `runPhase` advances with travel distance so stride
    * frequency scales with speed.
    */
+  dispose(): void {
+    disposeObject(this.root);
+    this.root.traverse((o) => {
+      const mesh = o as THREE.Mesh;
+      if (mesh.isMesh) (mesh.material as THREE.Material).dispose();
+    });
+    this.root.removeFromParent();
+  }
+
   animate(dt: number, opts: {
     runPhase: number;
     airborne: boolean;

@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { CONFIG, trackHalfWidth, type QualityLevel } from '../game/Config';
 import type { Theme } from '../game/Themes';
-import { MeshKit, getGlowMaterial } from '../utils/MeshKit';
+import { MeshKit, disposeObject, getGlowMaterial } from '../utils/MeshKit';
 import { ObjectPool } from '../utils/ObjectPool';
 import { Random } from '../utils/Random';
 import { makeCloudTexture, makeSignTexture, makeWindowTexture } from '../utils/Textures';
@@ -79,6 +79,7 @@ void main() {
 export class SceneryBuilder {
   readonly root = new THREE.Group();
   private readonly skyMaterial: THREE.ShaderMaterial;
+  private readonly dome: THREE.Mesh;
   private readonly stars: THREE.Points;
   private readonly starsMaterial: THREE.PointsMaterial;
   private readonly clouds: THREE.Sprite[] = [];
@@ -118,10 +119,10 @@ export class SceneryBuilder {
       depthWrite: false,
       fog: false,
     });
-    const dome = new THREE.Mesh(new THREE.SphereGeometry(1000, 24, 16), this.skyMaterial);
-    dome.renderOrder = -10;
-    dome.frustumCulled = false;
-    this.root.add(dome);
+    this.dome = new THREE.Mesh(new THREE.SphereGeometry(1000, 24, 16), this.skyMaterial);
+    this.dome.renderOrder = -10;
+    this.dome.frustumCulled = false;
+    this.root.add(this.dome);
 
     // Stars.
     const starCount = 700;
@@ -495,7 +496,18 @@ export class SceneryBuilder {
     this.buildingMaterialFar.dispose();
     this.nearSkyline.geometry.dispose();
     this.windowTexture.dispose();
+    this.dome.geometry.dispose();
+    this.cloudMaterial.map?.dispose();
     for (const t of this.signTextures) t.dispose();
-    getGlowMaterial();
+    const glow = getGlowMaterial();
+    for (const pool of this.propPools.values()) {
+      pool.forEachCreated((p) => {
+        disposeObject(p.object);
+        p.object.traverse((o) => {
+          const mesh = o as THREE.Mesh;
+          if (mesh.isMesh && mesh.material !== glow) (mesh.material as THREE.Material).dispose();
+        });
+      });
+    }
   }
 }

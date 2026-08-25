@@ -83,6 +83,17 @@ export class CollisionSystem {
     }
   }
 
+  dispose(): void {
+    this.debugGroup.traverse((o) => {
+      const line = o as THREE.LineSegments;
+      if (line.isLineSegments) {
+        line.geometry.dispose();
+        (line.material as THREE.Material).dispose();
+      }
+    });
+    this.debugGroup.removeFromParent();
+  }
+
   private hideHelpers(): void {
     for (const h of this.helpers) h.visible = false;
   }

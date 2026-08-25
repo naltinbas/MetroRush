@@ -132,8 +132,15 @@ export class WorldManager {
   }
 
   dispose(): void {
+    for (const seg of this.segments.segments) {
+      seg.clear(this.deps);
+      this.scene.remove(seg.group);
+    }
+    this.obstacles.dispose();
+    this.powerUps.dispose();
     this.track.dispose();
     this.scenery.dispose();
     this.shardRenderer.dispose();
+    this.scene.remove(this.scenery.root, this.shardRenderer.mesh, this.sun, this.sun.target, this.hemi, this.ambient);
   }
 }
