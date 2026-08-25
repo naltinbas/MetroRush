@@ -42,8 +42,6 @@ export interface SegmentPattern {
   /** 0 breather .. 3 demanding. */
   intensity: number;
   requiredAction: RequiredAction;
-  /** Lanes the pattern typically blocks; the validator works from the spawned plan, this is documentation. */
-  blockedLanes: number[];
   moving?: boolean;
   spawn: (ctx: PatternContext) => void;
 }
@@ -58,7 +56,6 @@ export const PATTERNS: readonly SegmentPattern[] = [
     weight: 0,
     intensity: 0,
     requiredAction: 'none',
-    blockedLanes: [],
     spawn: (ctx) => {
       const lane = Math.floor(ctx.laneCount / 2);
       ctx.shardLine(lane, 4, L() - 4, 2.2);
@@ -70,7 +67,6 @@ export const PATTERNS: readonly SegmentPattern[] = [
     weight: (d) => 3 + d * 2,
     intensity: 0,
     requiredAction: 'none',
-    blockedLanes: [],
     spawn: (ctx) => {
       const lane = ctx.randomLane();
       ctx.shardLine(lane, 3, 12, 2.2);
@@ -84,7 +80,6 @@ export const PATTERNS: readonly SegmentPattern[] = [
     weight: 6,
     intensity: 1,
     requiredAction: 'jump',
-    blockedLanes: [],
     spawn: (ctx) => {
       const lane = ctx.randomLane();
       const d = ctx.rng.range(9, 15);
@@ -100,7 +95,6 @@ export const PATTERNS: readonly SegmentPattern[] = [
     weight: 5,
     intensity: 1,
     requiredAction: 'jump',
-    blockedLanes: [],
     spawn: (ctx) => {
       const lane = ctx.randomLane();
       const d = ctx.rng.range(8, 16);
@@ -115,7 +109,6 @@ export const PATTERNS: readonly SegmentPattern[] = [
     weight: 4,
     intensity: 1,
     requiredAction: 'jump',
-    blockedLanes: [],
     spawn: (ctx) => {
       const lane = ctx.randomLane();
       const d = ctx.rng.range(8, 15);
@@ -131,7 +124,6 @@ export const PATTERNS: readonly SegmentPattern[] = [
     weight: 5,
     intensity: 1,
     requiredAction: 'slide',
-    blockedLanes: [],
     spawn: (ctx) => {
       const lane = ctx.randomLane();
       const d = ctx.rng.range(8, 16);
@@ -146,7 +138,6 @@ export const PATTERNS: readonly SegmentPattern[] = [
     weight: 5,
     intensity: 2,
     requiredAction: 'slide',
-    blockedLanes: [],
     spawn: (ctx) => {
       const d = ctx.rng.range(9, 15);
       ctx.obstacle('pipe', 0, d);
@@ -161,7 +152,6 @@ export const PATTERNS: readonly SegmentPattern[] = [
     weight: 6,
     intensity: 1,
     requiredAction: 'laneChange',
-    blockedLanes: [1],
     spawn: (ctx) => {
       const lane = ctx.randomLane();
       const def = ctx.rng.pick(['gate', 'crate_stack', 'container'] as const);
@@ -177,7 +167,6 @@ export const PATTERNS: readonly SegmentPattern[] = [
     weight: 6,
     intensity: 2,
     requiredAction: 'laneChange',
-    blockedLanes: [0, 1],
     spawn: (ctx) => {
       // Wall covers two adjacent lanes; the remaining lane is the escape.
       const leftmost = ctx.rng.int(0, ctx.laneCount - 2);
@@ -193,7 +182,6 @@ export const PATTERNS: readonly SegmentPattern[] = [
     weight: 5,
     intensity: 2,
     requiredAction: 'laneChange',
-    blockedLanes: [0],
     spawn: (ctx) => {
       const lane = ctx.randomLane();
       const d = ctx.rng.range(7, 17);
@@ -209,7 +197,6 @@ export const PATTERNS: readonly SegmentPattern[] = [
     weight: (d) => 3 + d * 5,
     intensity: 2,
     requiredAction: 'laneChange',
-    blockedLanes: [0],
     moving: true,
     spawn: (ctx) => {
       const lane = ctx.randomLane();
@@ -225,7 +212,6 @@ export const PATTERNS: readonly SegmentPattern[] = [
     weight: 4,
     intensity: 2,
     requiredAction: 'jump',
-    blockedLanes: [],
     spawn: (ctx) => {
       const a = ctx.randomLane();
       const b = ctx.pickOther(a);
@@ -241,7 +227,6 @@ export const PATTERNS: readonly SegmentPattern[] = [
     weight: 4,
     intensity: 2,
     requiredAction: 'slide',
-    blockedLanes: [],
     spawn: (ctx) => {
       const a = ctx.randomLane();
       ctx.obstacle('sign_low', a, 6);
@@ -257,7 +242,6 @@ export const PATTERNS: readonly SegmentPattern[] = [
     weight: 5,
     intensity: 2,
     requiredAction: 'none',
-    blockedLanes: [],
     spawn: (ctx) => {
       // Jump lane has the reward, another lane has cones, the last is plain.
       const rich = ctx.randomLane();
@@ -277,7 +261,6 @@ export const PATTERNS: readonly SegmentPattern[] = [
     weight: (d) => 2 + d * 4,
     intensity: 2,
     requiredAction: 'slide',
-    blockedLanes: [],
     moving: true,
     spawn: (ctx) => {
       const d = ctx.rng.range(9, 15);
@@ -294,7 +277,6 @@ export const PATTERNS: readonly SegmentPattern[] = [
     weight: (d) => 2 + d * 4,
     intensity: 2,
     requiredAction: 'jump',
-    blockedLanes: [],
     moving: true,
     spawn: (ctx) => {
       const d = ctx.rng.range(9, 15);
@@ -308,7 +290,6 @@ export const PATTERNS: readonly SegmentPattern[] = [
     weight: 3,
     intensity: 2,
     requiredAction: 'slide',
-    blockedLanes: [],
     spawn: (ctx) => {
       const lane = ctx.randomLane();
       const d = ctx.rng.range(8, 15);
@@ -324,7 +305,6 @@ export const PATTERNS: readonly SegmentPattern[] = [
     weight: (d) => 3 + d * 3,
     intensity: 3,
     requiredAction: 'laneChange',
-    blockedLanes: [0],
     spawn: (ctx) => {
       const blocked = ctx.randomLane();
       const others = ctx.otherLanes(blocked);
@@ -343,7 +323,6 @@ export const PATTERNS: readonly SegmentPattern[] = [
     weight: (d) => 2 + d * 3,
     intensity: 3,
     requiredAction: 'laneChange',
-    blockedLanes: [0, 1],
     spawn: (ctx) => {
       const leftmost = ctx.rng.int(0, ctx.laneCount - 2);
       ctx.obstacle('wall', leftmost, 5);
@@ -359,7 +338,6 @@ export const PATTERNS: readonly SegmentPattern[] = [
     weight: 2,
     intensity: 1,
     requiredAction: 'jump',
-    blockedLanes: [],
     spawn: (ctx) => {
       const lane = ctx.randomLane();
       ctx.obstacle('crate', lane, 8);
@@ -374,7 +352,6 @@ export const PATTERNS: readonly SegmentPattern[] = [
     weight: (d) => 2 + d * 3,
     intensity: 3,
     requiredAction: 'laneChange',
-    blockedLanes: [0, 2],
     spawn: (ctx) => {
       // Two outer lanes blocked at different depths; middle lane has a jump.
       const mid = Math.floor(ctx.laneCount / 2);

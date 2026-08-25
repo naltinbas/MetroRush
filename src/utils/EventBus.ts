@@ -11,7 +11,7 @@ export interface GameEvents {
   crash: { x: number; y: number; z: number };
   nearMiss: { bonus: number; x: number; y: number; z: number };
   laneChange: { dir: number };
-  jump: Record<string, never>;
+  jump: { auto: boolean };
   slide: Record<string, never>;
   land: Record<string, never>;
   tramHorn: Record<string, never>;

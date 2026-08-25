@@ -193,7 +193,7 @@ export class Game {
       this.ui.float(`Near miss +${Math.round(bonus)}`, 'good');
     });
     ev.on('laneChange', () => this.audio.play('lane'));
-    ev.on('jump', () => this.audio.play('jump'));
+    ev.on('jump', ({ auto }) => this.audio.play('jump', auto ? 0.8 : 1));
     ev.on('slide', () => this.audio.play('slide'));
     ev.on('land', () => this.audio.play('land'));
     ev.on('tramHorn', () => this.audio.play('horn'));
@@ -255,6 +255,8 @@ export class Game {
       score: this.score.score,
       distance: this.score.distance,
       shards: this.score.shards,
+      time: this.score.elapsed,
+      nearMisses: this.score.nearMisses,
       bestScore: this.save.get('bestScore'),
       bestDistance: this.save.get('bestDistance'),
       newBestScore: result.newBestScore,

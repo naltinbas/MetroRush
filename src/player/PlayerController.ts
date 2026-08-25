@@ -128,8 +128,7 @@ export class PlayerController {
     this.vy = CONFIG.movement.jumpVelocity;
     this.airborne = true;
     this.y = Math.max(this.y, 0.001);
-    if (!auto) this.events.emit('jump', {});
-    else this.events.emit('jump', {});
+    this.events.emit('jump', { auto });
     return true;
   }
 

@@ -1,5 +1,5 @@
 import { isPowerUpId, POWER_UP_IDS, type PowerUpId } from '../entities/PowerUpDefinitions';
-import { CONFIG, laneX } from '../game/Config';
+import { CONFIG } from '../game/Config';
 import { Random } from '../utils/Random';
 import { PATTERNS, patternById, patternWeight, type PatternContext, type SegmentPattern } from './Patterns';
 import { ReachabilityValidator } from './ReachabilityValidator';
@@ -30,7 +30,6 @@ export class PatternGenerator {
   private recentIntensity: number[] = [];
   private segmentsSincePowerUp = 99;
   private lastPatternId = '';
-  lastPatternId2 = '';
   /** Stats surfaced by the debug overlay. */
   rejected = 0;
   generated = 0;
@@ -124,7 +123,6 @@ export class PatternGenerator {
   private finish(plan: SegmentPlan, pattern: SegmentPattern): void {
     this.recentIntensity.push(pattern.intensity);
     if (this.recentIntensity.length > 4) this.recentIntensity.shift();
-    this.lastPatternId2 = this.lastPatternId;
     this.lastPatternId = pattern.id;
     if (plan.powerUps.length > 0) this.segmentsSincePowerUp = 0;
     else this.segmentsSincePowerUp++;
@@ -215,8 +213,4 @@ export class PatternGenerator {
     return isPowerUpId(id) ? id : 'magnet';
   }
 
-  /** Used by the debug overlay to show where a lane sits. */
-  laneLabel(lane: number): string {
-    return `${lane} (x=${laneX(lane).toFixed(1)})`;
-  }
 }

@@ -2,7 +2,7 @@ import type { ActiveEffect } from '../entities/PowerUpManager';
 import { POWER_UP_DEFS, type PowerUpId } from '../entities/PowerUpDefinitions';
 import type { QualityLevel, ThemeId } from '../game/Config';
 import { THEMES } from '../game/Themes';
-import { formatDistance, formatScore } from '../utils/MathUtils';
+import { formatDistance, formatScore, formatTime } from '../utils/MathUtils';
 
 export type ScreenName = 'menu' | 'hud' | 'pause' | 'gameover' | 'none';
 
@@ -31,6 +31,8 @@ export interface GameOverData {
   score: number;
   distance: number;
   shards: number;
+  time: number;
+  nearMisses: number;
   bestScore: number;
   bestDistance: number;
   newBestScore: boolean;
@@ -278,6 +280,8 @@ export class UIManager {
     $('go-score').textContent = formatScore(d.score);
     $('go-distance').textContent = formatDistance(d.distance);
     $('go-shards').textContent = String(d.shards);
+    $('go-time').textContent = formatTime(d.time);
+    $('go-near').textContent = String(d.nearMisses);
     $('go-best-score').textContent = formatScore(d.bestScore);
     $('go-best-distance').textContent = formatDistance(d.bestDistance);
     $('go-new-best').classList.toggle('hidden', !(d.newBestScore || d.newBestDistance));
