@@ -53,11 +53,11 @@ export class PlayerController {
 
   get state(): PlayerState {
     if (this.crashed) return PlayerState.CRASHED;
-    if (this.graceKind === 'shield' && this.graceTimer > 0) return PlayerState.REVIVING;
     if (this.stumbleTimer > 0) return PlayerState.STUMBLING;
     if (this.sliding) return PlayerState.SLIDING;
     if (this.airborne) return this.vy > 0 ? PlayerState.JUMPING : PlayerState.FALLING;
     if (this.laneChanging) return this.laneDir < 0 ? PlayerState.LANE_CHANGE_LEFT : PlayerState.LANE_CHANGE_RIGHT;
+    if (this.graceKind === 'shield' && this.graceTimer > 0) return PlayerState.REVIVING;
     return PlayerState.RUNNING;
   }
 

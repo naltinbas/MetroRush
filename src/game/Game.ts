@@ -444,15 +444,18 @@ export class Game {
   }
 
   private updateDebug(): void {
+    const segs = this.world.segments.segments;
     const seg = this.world.segments.current();
+    const next = seg ? segs[segs.indexOf(seg) + 1] : undefined;
     const info = this.renderer.info.render;
     const gen = this.world.generator;
+    const grace = this.player.invulnerable ? 'shield' : this.player.clutterProtected ? 'stumble' : '-';
     const text = [
       `fps ${this.fps}   draw calls ${info.calls}   tris ${info.triangles}`,
-      `state ${this.state}   player ${this.player.state}`,
+      `state ${this.state}   player ${this.player.state}   grace ${grace}`,
       `speed ${this.speed.toFixed(1)} m/s   base ${this.difficulty.baseSpeed.toFixed(1)}   difficulty ${this.difficulty.difficulty.toFixed(2)}`,
       `lane ${this.player.targetLane}   x ${this.player.x.toFixed(2)}   y ${this.player.y.toFixed(2)}`,
-      `segments ${this.world.segments.segments.length}   pattern ${seg?.plan?.patternId ?? '-'}   next ${this.world.segments.segments[1]?.plan?.patternId ?? '-'}`,
+      `segments ${segs.length}   pattern ${seg?.plan?.patternId ?? '-'}   next ${next?.plan?.patternId ?? '-'}`,
       `seed ${gen.seed}   generated ${gen.generated}   rejected ${gen.rejected}   fallbacks ${gen.fallbacks}`,
       `particles ${this.particles.alive}   pools ${this.world.obstacles.stats()}`,
     ].join('\n');
