@@ -85,7 +85,7 @@ export class TrackBuilder {
       kit.box(0.5, 0.05, 0.26, x - s * 1.6, 4.86, z, 0xfff0c8, { glow: true });
     }
     // Segment seam marker on the deck.
-    kit.box(hw * 2 - 1.2, 0.02, 0.14, 0, 0.005, -L + 0.2, theme.accents[0], { glow: true });
+    kit.box(hw * 2 - 1.2, 0.02, 0.14, 0, 0.005, -L + 0.2, 0x2a1a40, { glow: true });
     const structure = kit.build(false);
     structure.traverse((o) => {
       const m = o as THREE.Mesh;
