@@ -110,7 +110,10 @@ export class Game {
 
     window.addEventListener('resize', () => this.onResize());
     document.addEventListener('visibilitychange', () => {
-      if (document.hidden && this.state === GameState.PLAYING) this.pause();
+      if (document.hidden && this.state === GameState.PLAYING) {
+        if (this.player.crashed) this.gameOver();
+        else this.pause();
+      }
     });
     this.onResize();
   }
@@ -222,7 +225,7 @@ export class Game {
   }
 
   pause(): void {
-    if (this.state !== GameState.PLAYING) return;
+    if (this.state !== GameState.PLAYING || this.player.crashed) return;
     this.state = GameState.PAUSED;
     this.audio.play('pause');
     window.setTimeout(() => {
@@ -364,7 +367,7 @@ export class Game {
         input.consume('pause', 0);
         break;
       case GameState.PLAYING:
-        if (input.consume('pause', 0.3)) this.pause();
+        if (input.consume('pause', 0.3) && !this.player.crashed) this.pause();
         input.consume('confirm', 0);
         input.consume('restart', 0);
         break;
