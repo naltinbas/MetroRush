@@ -25,10 +25,16 @@ const SCROLL_KEYS = new Set(['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 
  * the press only counts if it happened within the buffer window. This is what
  * makes a jump pressed a few frames before landing still fire.
  */
+interface Press {
+  time: number;
+  frame: number;
+}
+
 export class InputManager {
-  private pressTime = new Map<InputAction, number>();
+  private presses = new Map<InputAction, Press>();
   private held = new Set<InputAction>();
   private attached = false;
+  private frame = 0;
 
   private onKeyDown = (e: KeyboardEvent): void => {
     const target = e.target as HTMLElement | null;
@@ -44,7 +50,7 @@ export class InputManager {
     // A focused button activates itself on Enter; do not also treat it as "confirm".
     if (isButton && action === 'confirm') return;
     this.held.add(action);
-    this.pressTime.set(action, performance.now() / 1000);
+    this.presses.set(action, { time: performance.now() / 1000, frame: this.frame });
   };
 
   private onKeyUp = (e: KeyboardEvent): void => {
@@ -72,24 +78,29 @@ export class InputManager {
     this.attached = false;
   }
 
+  /** Call once per game update so presses made since the last update always count. */
+  beginFrame(): void {
+    this.frame++;
+  }
+
+  private fresh(p: Press, buffer: number): boolean {
+    // Either recent in wall-clock terms, or no update has run since the press
+    // (a slow frame must not eat an input).
+    return performance.now() / 1000 - p.time <= buffer || p.frame >= this.frame - 1;
+  }
+
   /** Returns true (once) if the action was pressed within the last `buffer` seconds. */
   consume(action: InputAction, buffer = 0.16): boolean {
-    const t = this.pressTime.get(action);
-    if (t === undefined) return false;
-    const now = performance.now() / 1000;
-    if (now - t <= buffer) {
-      this.pressTime.delete(action);
-      return true;
-    }
-    this.pressTime.delete(action);
-    return false;
+    const p = this.presses.get(action);
+    if (p === undefined) return false;
+    this.presses.delete(action);
+    return this.fresh(p, buffer);
   }
 
   /** Like consume() but leaves the press in the buffer. */
   peek(action: InputAction, buffer = 0.16): boolean {
-    const t = this.pressTime.get(action);
-    if (t === undefined) return false;
-    return performance.now() / 1000 - t <= buffer;
+    const p = this.presses.get(action);
+    return p !== undefined && this.fresh(p, buffer);
   }
 
   isHeld(action: InputAction): boolean {
@@ -98,6 +109,6 @@ export class InputManager {
 
   /** Drop everything buffered, e.g. when a new run starts or a menu opens. */
   clear(): void {
-    this.pressTime.clear();
+    this.presses.clear();
   }
 }

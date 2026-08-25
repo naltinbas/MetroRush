@@ -319,6 +319,7 @@ export class Game {
   }
 
   private update(dt: number): void {
+    this.input.beginFrame();
     this.handleGlobalInput();
     switch (this.state) {
       case GameState.MENU:
