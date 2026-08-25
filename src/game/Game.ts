@@ -51,6 +51,7 @@ export class Game {
   private fpsTimer = 0;
   private dustTimer = 0;
   private running = false;
+  private contextLost = false;
 
   constructor(private readonly container: HTMLElement) {
     // Quality has to be known before anything that sizes buffers is built.
@@ -115,10 +116,23 @@ export class Game {
   }
 
   private createRenderer(): THREE.WebGLRenderer {
-    const canvas = document.createElement('canvas');
-    const probe = canvas.getContext('webgl2') ?? canvas.getContext('webgl');
-    if (!probe) throw new Error('WebGL is not available in this browser.');
-    const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
+    // Probe on a throwaway canvas: a canvas hands back its first context and
+    // ignores later attribute requests, so probing on the real one would
+    // silently drop what three asks for.
+    const probe = document.createElement('canvas').getContext('webgl2');
+    if (!probe) throw new Error('WebGL 2 is not available in this browser.');
+    probe.getExtension('WEBGL_lose_context')?.loseContext();
+    let renderer: THREE.WebGLRenderer;
+    try {
+      renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+    } catch (err) {
+      throw new Error(`Could not start WebGL: ${err instanceof Error ? err.message : String(err)}`);
+    }
+    renderer.domElement.addEventListener('webglcontextlost', (e) => {
+      e.preventDefault();
+      this.onContextLost();
+    });
+    renderer.domElement.addEventListener('webglcontextrestored', () => this.onContextRestored());
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure = 1.05;
@@ -315,7 +329,7 @@ export class Game {
       this.fpsTimer = 0;
     }
     this.update(dt);
-    this.renderer.render(this.scene, this.cameraController.camera);
+    if (!this.contextLost) this.renderer.render(this.scene, this.cameraController.camera);
     if (CONFIG.debug.enabled) this.updateDebug();
   }
 
@@ -443,6 +457,19 @@ export class Game {
       `particles ${this.particles.alive}   pools ${this.world.obstacles.stats()}`,
     ].join('\n');
     this.ui.setDebug(text);
+  }
+
+  private onContextLost(): void {
+    this.contextLost = true;
+    if (this.state === GameState.PLAYING) this.pause();
+    this.ui.showError('The graphics context was lost. Waiting for the browser to restore it.');
+  }
+
+  private onContextRestored(): void {
+    this.contextLost = false;
+    this.ui.hideError();
+    const screen = this.state === GameState.MENU ? 'menu' : this.state === GameState.PAUSED ? 'pause' : this.state === GameState.GAME_OVER ? 'gameover' : 'hud';
+    this.ui.showScreen(screen);
   }
 
   private onResize(): void {

@@ -293,4 +293,8 @@ export class UIManager {
     $('error-message').textContent = message;
     for (const s of Object.values(this.screens)) s.classList.add('hidden');
   }
+
+  hideError(): void {
+    $('error').classList.add('hidden');
+  }
 }
