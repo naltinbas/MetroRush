@@ -72,10 +72,12 @@ export class SaveManager {
 
   /** Records run results; returns which records were beaten. */
   recordRun(score: number, distance: number, shards: number): { newBestScore: boolean; newBestDistance: boolean } {
-    const newBestScore = score > this.cache.bestScore;
-    const newBestDistance = distance > this.cache.bestDistance;
-    if (newBestScore) this.set('bestScore', Math.floor(score));
-    if (newBestDistance) this.set('bestDistance', Math.floor(distance));
+    const s = Math.floor(score);
+    const d = Math.floor(distance);
+    const newBestScore = s > this.cache.bestScore;
+    const newBestDistance = d > this.cache.bestDistance;
+    if (newBestScore) this.set('bestScore', s);
+    if (newBestDistance) this.set('bestDistance', d);
     if (shards > this.cache.bestShards) this.set('bestShards', shards);
     this.set('runs', this.cache.runs + 1);
     return { newBestScore, newBestDistance };
