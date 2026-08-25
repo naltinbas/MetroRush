@@ -1,6 +1,6 @@
 # Metro Rush
 
-Browser endless runner in TypeScript and Three.js. You play a courier sprinting along an elevated skyrail maintenance corridor above a neon city: three lanes, jump the crates, slide under the pipes, get out of the way of the trams, grab energy shards and power-ups. It runs on the keyboard alone, has no backend and downloads no assets. Every mesh, texture and sound is generated in code when the page loads.
+Browser endless runner in TypeScript and Three.js. You play a courier sprinting along an elevated skyrail maintenance corridor above a neon city: three lanes (the code reads `CONFIG.lanes.count` everywhere, but the pattern catalogue is written for three), jump the crates, slide under the pipes, get out of the way of the trams, grab energy shards and power-ups. It runs on the keyboard alone, has no backend and downloads no assets. Every mesh, texture and sound is generated in code when the page loads.
 
 ![Menu](screenshots/01-menu.jpg)
 
@@ -46,7 +46,7 @@ Three of the hazards move. The incoming rail car sounds its horn, drives toward 
 
 Energy shards come in lines, in arcs over jumps and in low trails under the overhead obstacles. Power-ups: magnet field, barrier shield, score amplifier, sprint boost, auto-hop boots. Each shows as a chip with a timer in the HUD while it lasts.
 
-Score comes from distance, shards and time survived, all multiplied by the current multiplier. The base multiplier goes up one step every 500 m (max 5) and the amplifier doubles it. Passing a fatal hazard by a hair pays a near-miss bonus. Cones cost 40 points. Best score and best distance are kept in `localStorage`.
+Score comes from distance, shards and time survived, all multiplied by the current multiplier. The base multiplier goes up one step every 500 m (max 5) and the amplifier doubles it. Passing a fatal hazard by a hair pays a near-miss bonus. Cones cost 40 points. The game-over screen shows score, distance, shards, time survived and near misses next to the stored bests. Best score and best distance are kept in `localStorage`.
 
 The menus have three color themes (Dusk, Midnight, Ember), a low-quality mode, a mute toggle and volume sliders.
 
@@ -121,7 +121,7 @@ Everything is in `src/game/InputManager.ts`. `KEYMAP` maps `KeyboardEvent.code` 
 
 ### Segment generation
 
-`SegmentManager` keeps `activeSegmentCount` (10) segments in a ring. When the near edge of the first segment is `recycleBehind` meters past the player, that segment moves to the far end and gets refilled.
+`SegmentManager` keeps `activeSegmentCount` (12) segments in a ring, enough that the far end sits past the fog. When the near edge of the first segment is `recycleBehind` meters past the player, that segment moves to the far end and gets refilled.
 
 Refilling calls `PatternGenerator.generate()` with the segment's start distance, the current difficulty (0..1, from distance travelled) and a speed range: the lowest speed the player could have on reaching the segment and the highest, which is the projected acceleration plus the sprint bonus.
 
@@ -139,9 +139,9 @@ Everything in `src/systems/CollisionSystem.ts` is an axis-aligned box. Obstacle 
 
 Along the track the player's box is extended by the distance the world moved this frame, plus the obstacle's own motion for trams, so nothing tunnels at 42 m/s or on a slow frame. Only segments overlapping a window around the player are visited.
 
-Cones cause a stumble: speed dips to 70% and recovers over 0.6 s, and the score takes a small penalty. Cones are ignored during the one-second grace after any stumble. Feet clipping the top of a jumpable obstacle by less than `clipTolerance` (0.3 m) also count as a stumble rather than a crash. Any other fatal contact breaks the shield if one is active, which gives 1.2 s of full invulnerability, and otherwise ends the run. A fatal obstacle whose box came within `nearMissMargin` sideways or `nearMissVertical` above the feet without touching pays the near-miss bonus once it is behind the player.
+Hits are evaluated at the moment the along-track boxes actually overlap, with the player's position interpolated across the frame, so a jump that clears a crate with 2 cm to spare is not judged by where the feet were at the end of the frame. Cones cause a stumble: speed dips to 70% and recovers over 0.6 s, and the score takes a small penalty. Cones are ignored during the one-second grace after any stumble. Feet clipping the top of a jumpable obstacle by less than `clipTolerance` (0.3 m) also count as a stumble rather than a crash. Any other fatal contact breaks the shield if one is active, which gives 1.2 s of full invulnerability, and otherwise ends the run. A fatal obstacle whose box came within `nearMissMargin` sideways or `nearMissVertical` above the feet without touching pays the near-miss bonus once it is behind the player.
 
-Shards use a looser box so they are collected while sliding or while jumping through arcs. With the magnet, shards inside the radius move toward the player each frame and are collected on contact. Auto-hop boots look ahead `leadTime * speed` meters in the player's lane for obstacles flagged `autoHop` and trigger the jump.
+Shards use a looser box so they are collected while sliding or while jumping through arcs. With the magnet, shards inside the radius move toward the player each frame and are collected on contact. Auto-hop boots look ahead `leadTime * speed` meters in the player's lane for jumpable obstacles flagged `autoHop` and trigger the jump, unless the player is sliding or an overhead obstacle sits within one jump's reach.
 
 ## Adding things
 
@@ -167,9 +167,9 @@ Add a palette to `THEMES` in `src/game/Themes.ts` and its id to `ThemeId` in `Co
 
 ## Performance
 
-Segments, obstacles, power-ups, props, shards and particles are pooled, and the update loop does not allocate. Shards, particles and the scrolling skyline are one `InstancedMesh` each (the skyline samples its window texture in world space), so a typical frame is around 100 draw calls. Every prop and obstacle is merged into at most two meshes, one lit and one glowing.
+Segments, obstacles, power-ups, props, shards and particles are pooled, and the steady-state update loop allocates nothing: the HUD data, the player pose and the active-effect list are reused objects. Shards, particles and the scrolling skyline are one `InstancedMesh` each (the skyline samples its window texture in world space), so a typical frame is around 100 draw calls. Every prop and obstacle is merged into at most two meshes, one lit and one glowing.
 
-There is one shadow-casting directional light with a fixed 1024 shadow map around the player. Low quality turns shadows off, lowers the render scale and pixel ratio, drops the speed-line effect and halves the skyline. Frame deltas are capped at 50 ms and the game pauses itself when the tab is hidden.
+There is one shadow-casting directional light with a 2048 shadow map. Its orthographic box is fitted at startup (and on every theme change) to the stretch of track the camera can see, with the box aligned along the track so the resolution goes into a narrow strip. Low quality turns shadows off, lowers the render scale and pixel ratio, drops the speed-line effect, halves the skyline and caps live particles at 250; these can be toggled at runtime because the buffers are always allocated at full size. Frame deltas are capped at 50 ms and the game pauses itself when the tab is hidden.
 
 The checks that ran before release, all in headless Chromium: menu, play, pause, game over, restart and best-score persistence through the real keyboard path; a ten-minute simulated run with an invulnerable player and random input, after which every pool was the same size as at the start and the heap sat around 30 MB; the 4000-segment generator stress mentioned above; and a simple autopilot that read the obstacle list and survived 200 s at 1080p without dying.
 
