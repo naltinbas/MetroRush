@@ -146,8 +146,7 @@ export class Game {
 
   private applySavedSettings(): void {
     const savedTheme = this.save.get('theme');
-    const fromQuery = new URLSearchParams(location.search).get('theme');
-    const theme: ThemeId = fromQuery ? CONFIG.theme : savedTheme in THEMES ? (savedTheme as ThemeId) : CONFIG.theme;
+    const theme: ThemeId = OVERRIDES.has('theme') ? CONFIG.theme : Object.hasOwn(THEMES, savedTheme) ? (savedTheme as ThemeId) : CONFIG.theme;
     if (theme !== CONFIG.theme) this.world.applyTheme(theme);
     this.audio.muted = this.save.get('muted');
     this.audio.sfxVolume = this.save.get('sfxVolume');
