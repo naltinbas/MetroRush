@@ -43,6 +43,8 @@ export type LastAction = 'none' | 'lane' | 'jump' | 'slide';
 export interface LaneState {
   idle: number;
   lastAction: LastAction;
+  /** While the last action is in progress it keeps the player clear of same-action obstacles up to here. */
+  coverUntil: number;
 }
 
 export interface ValidatorState {
@@ -64,6 +66,10 @@ interface WalkParams {
   laneDist: number;
   jumpBusy: number;
   slideBusy: number;
+  /** Distance past an obstacle's front over which a jump started for it still has the feet above jumpable height. */
+  jumpCover: number;
+  /** Same for a slide: how far the player stays low after starting it at an obstacle's front. */
+  slideCover: number;
 }
 
 export interface ValidationResult {
@@ -85,7 +91,7 @@ const MERGE_GAP = 2.5;
 
 function cloneState(s: ValidatorState): ValidatorState {
   return {
-    lanes: s.lanes.map((l) => ({ idle: l.idle, lastAction: l.lastAction })),
+    lanes: s.lanes.map((l) => ({ idle: l.idle, lastAction: l.lastAction, coverUntil: l.coverUntil })),
     pendingArrival: s.pendingArrival.slice(),
   };
 }
@@ -114,7 +120,7 @@ export class ReachabilityValidator {
     const lanes: LaneState[] = [];
     const pendingArrival: number[] = [];
     for (let i = 0; i < CONFIG.lanes.count; i++) {
-      lanes.push({ idle: i === lane ? startD : INF, lastAction: 'none' });
+      lanes.push({ idle: i === lane ? startD : INF, lastAction: 'none', coverUntil: -INF });
       pendingArrival.push(INF);
     }
     return { lanes, pendingArrival };
@@ -202,11 +208,15 @@ export class ReachabilityValidator {
     return out;
   }
 
-  private params(speedHigh: number): WalkParams {
+  private params(speedLow: number, speedHigh: number): WalkParams {
     const cfg = CONFIG.validator;
     const mv = CONFIG.movement;
     const airTime = (2 * mv.jumpVelocity) / Math.abs(mv.gravity);
     return {
+      // Feet stay above 1.15 m from 0.11 s to 0.64 s after takeoff; taking off
+      // up to 0.12 s before the front leaves at least 0.5 s of cover at the slow end.
+      jumpCover: 0.5 * speedLow,
+      slideCover: 0.9 * mv.slideDuration * speedLow,
       step: cfg.gridStep,
       reaction: cfg.reactionTime * speedHigh,
       chainReaction: cfg.laneChainReactionTime * speedHigh,
@@ -230,7 +240,7 @@ export class ReachabilityValidator {
     if (error) return failed(error);
 
     const intervals = this.mergeLanes(this.prevRaw, raw, speedLow);
-    const p = this.params(speedHigh);
+    const p = this.params(speedLow, speedHigh);
     const zEnd = startD + CONFIG.world.segmentLength;
 
     // Some route from the committed track through the new segment.
@@ -267,6 +277,7 @@ export class ReachabilityValidator {
     let z0 = startD - lookback;
     let idle = z0 - p.reaction;
     let lastAction: LastAction = 'none';
+    let coverUntil = -INF;
     for (const iv of intervals[lane]) {
       if (iv.action === 'clutter' || iv.end <= z0 || iv.start >= startD) continue;
       if (iv.action === 'block') {
@@ -278,10 +289,11 @@ export class ReachabilityValidator {
         // Mid-action over an obstacle that straddles the start of the window.
         idle = iv.start + (iv.action === 'jump' ? p.jumpBusy : p.slideBusy);
         lastAction = iv.action;
+        coverUntil = iv.start + (iv.action === 'jump' ? p.jumpCover : p.slideCover);
       }
     }
     const state = this.initialState(0, -1);
-    state.lanes[lane] = { idle, lastAction };
+    state.lanes[lane] = { idle, lastAction, coverUntil };
     return { state, z0 };
   }
 
@@ -322,7 +334,7 @@ export class ReachabilityValidator {
     const arrive = (l: number, at: number): void => {
       // The landing lane must be clear around the arrival, even when the
       // change was scheduled before this window and never saw these obstacles.
-      if (at < lanes[l].idle && corridorClear(l, at - p.laneDist, at + p.reaction)) lanes[l] = { idle: at, lastAction: 'lane' };
+      if (at < lanes[l].idle && corridorClear(l, at - p.laneDist, at + p.reaction)) lanes[l] = { idle: at, lastAction: 'lane', coverUntil: -INF };
     };
 
     for (let z = z0; z < z1 - 1e-9; z += step) {
@@ -336,7 +348,7 @@ export class ReachabilityValidator {
         }
       }
 
-      const next: LaneState[] = lanes.map((l) => ({ idle: l.idle, lastAction: l.lastAction }));
+      const next: LaneState[] = lanes.map((l) => ({ idle: l.idle, lastAction: l.lastAction, coverUntil: l.coverUntil }));
       for (let l = 0; l < laneCount; l++) {
         const cur = lanes[l];
         if (cur.idle === INF) continue;
@@ -364,11 +376,16 @@ export class ReachabilityValidator {
           next[l].idle = INF;
           continue;
         }
+        // An action already in progress covers this obstacle too (a second
+        // sign inside one slide, a second crate under one jump).
+        const covered = cur.lastAction === iv.action && iv.end <= cur.coverUntil;
+        if (covered) continue;
         const firstStep = iv.start >= z && iv.start < z + step;
         if (firstStep) {
           if (cur.idle + p.reaction <= iv.start) {
             next[l].idle = iv.start + (iv.action === 'jump' ? p.jumpBusy : p.slideBusy);
             next[l].lastAction = iv.action;
+            next[l].coverUntil = iv.start + (iv.action === 'jump' ? p.jumpCover : p.slideCover);
           } else {
             next[l].idle = INF;
           }
