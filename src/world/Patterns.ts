@@ -328,11 +328,11 @@ export const PATTERNS: readonly SegmentPattern[] = [
       const others = ctx.otherLanes(blocked);
       const jumpLane = ctx.rng.pick(others);
       const slideLane = others.find((l) => l !== jumpLane) ?? jumpLane;
-      ctx.obstacle('container', blocked, 6);
-      ctx.obstacle('crate', jumpLane, 7);
-      ctx.obstacle('sign_low', slideLane, 20);
-      ctx.shardArc(jumpLane, 7);
-      ctx.shardLow(slideLane, 20);
+      ctx.obstacle('container', blocked, 9);
+      ctx.obstacle('crate', jumpLane, 9);
+      ctx.obstacle('sign_low', slideLane, 21);
+      ctx.shardArc(jumpLane, 9);
+      ctx.shardLow(slideLane, 21);
     },
   },
   {
