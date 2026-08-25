@@ -141,7 +141,7 @@ export const CONFIG = {
     resolutionScale: 1,
     maxPixelRatio: 2,
     shadows: true,
-    shadowMapSize: 1024,
+    shadowMapSize: 2048,
   },
 
   debug: {

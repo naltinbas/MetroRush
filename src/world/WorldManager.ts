@@ -70,17 +70,56 @@ export class WorldManager {
     if (on) {
       const s = CONFIG.render.shadowMapSize;
       this.sun.shadow.mapSize.set(s, s);
-      const cam = this.sun.shadow.camera;
-      cam.left = -16;
-      cam.right = 16;
-      cam.top = 30;
-      cam.bottom = -14;
-      cam.near = 1;
-      cam.far = 160;
       this.sun.shadow.bias = -0.0015;
       this.sun.shadow.normalBias = 0.02;
-      cam.updateProjectionMatrix();
+      this.fitShadowCamera();
     }
+  }
+
+  private readonly fitProbe = new THREE.Object3D();
+  private readonly fitInverse = new THREE.Matrix4();
+  private readonly fitCorner = new THREE.Vector3();
+
+  /**
+   * Sizes the orthographic shadow box to the stretch of track the camera can
+   * see. The box's up axis runs along the track so the map's resolution is
+   * spent on a narrow strip instead of a square around the light.
+   */
+  private fitShadowCamera(): void {
+    const cam = this.sun.shadow.camera;
+    cam.up.set(0, 0, -1);
+    const probe = this.fitProbe;
+    probe.up.copy(cam.up);
+    probe.position.copy(this.sun.position);
+    probe.lookAt(this.sun.target.position);
+    probe.updateMatrixWorld(true);
+    this.fitInverse.copy(probe.matrixWorld).invert();
+    let left = Infinity;
+    let right = -Infinity;
+    let bottom = Infinity;
+    let top = -Infinity;
+    let near = Infinity;
+    let far = -Infinity;
+    for (const x of [-9, 9]) {
+      for (const y of [0, 5]) {
+        for (const z of [-110, 12]) {
+          const v = this.fitCorner.set(x, y, z).applyMatrix4(this.fitInverse);
+          left = Math.min(left, v.x);
+          right = Math.max(right, v.x);
+          bottom = Math.min(bottom, v.y);
+          top = Math.max(top, v.y);
+          near = Math.min(near, -v.z);
+          far = Math.max(far, -v.z);
+        }
+      }
+    }
+    cam.left = left - 2;
+    cam.right = right + 2;
+    cam.bottom = bottom - 2;
+    cam.top = top + 2;
+    cam.near = near - 5;
+    cam.far = far + 5;
+    cam.updateProjectionMatrix();
   }
 
   setSpawnContext(fn: () => SpawnContext): void {
@@ -127,6 +166,7 @@ export class WorldManager {
     this.sun.color.set(t.sunColor);
     this.sun.intensity = t.sunIntensity;
     this.sun.position.set(...t.sunPosition);
+    this.configureShadows();
     this.track.applyTheme(t);
     this.scenery.applyTheme(t);
   }
