@@ -59,7 +59,14 @@ export class PatternGenerator {
     let plan: SegmentPlan | null = null;
     let chosen: SegmentPattern | null = null;
 
-    if (req.attract || req.startD < CONFIG.world.safeDistance) {
+    if (req.attract) {
+      const attract = emptyPlan('attract', 0);
+      const res = this.validator.validate(attract, req.startD, req.speedLow, req.speedHigh);
+      this.validator.commit(res);
+      this.finish(attract, patternById('intro_safe')!);
+      return attract;
+    }
+    if (req.startD < CONFIG.world.safeDistance) {
       chosen = patternById('intro_safe')!;
       plan = this.spawn(chosen, req);
       const res = this.validator.validate(plan, req.startD, req.speedLow, req.speedHigh);
