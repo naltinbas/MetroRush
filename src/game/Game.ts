@@ -79,11 +79,7 @@ export class Game {
     this.collision = new CollisionSystem(this.scene, this.player, this.world, this.powerUps, this.score, this.events);
     this.collision.setDebug(CONFIG.debug.showColliders);
 
-    this.world.setSpawnContext(() => ({
-      difficulty: this.difficulty.difficulty,
-      speed: this.state === GameState.PLAYING ? this.difficulty.baseSpeed : CONFIG.movement.initialSpeed,
-      attract: this.state === GameState.MENU,
-    }));
+    this.world.setSpawnContext(() => ({ attract: this.state === GameState.MENU }));
 
     this.ui = new UIManager({
       onPlay: () => this.startRun(),

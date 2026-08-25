@@ -1,14 +1,30 @@
 import type * as THREE from 'three';
 import { CONFIG } from '../game/Config';
 import type { EventBus } from '../utils/EventBus';
+import { clamp01 } from '../utils/MathUtils';
 import type { PatternGenerator } from './PatternGenerator';
 import { Segment, type SegmentDeps } from './Segment';
 import type { TrackBuilder } from './TrackBuilder';
 
 export interface SpawnContext {
-  difficulty: number;
-  speed: number;
   attract: boolean;
+}
+
+/**
+ * Speed the nominal curve reaches at a track distance, ignoring stumbles and
+ * sprints. Generation reads this instead of the live speed so a seed always
+ * produces the same track; the validator's window around it covers what play
+ * can add or remove.
+ */
+export function nominalSpeedAt(distance: number): number {
+  const mv = CONFIG.movement;
+  const a = mv.speedAcceleration;
+  const v0 = mv.initialSpeed;
+  const tCap = (mv.maxSpeed - v0) / a;
+  const dCap = v0 * tCap + 0.5 * a * tCap * tCap;
+  if (distance >= dCap) return mv.maxSpeed;
+  const t = (-v0 + Math.sqrt(v0 * v0 + 2 * a * Math.max(0, distance))) / a;
+  return v0 + a * t;
 }
 
 /**
@@ -19,7 +35,7 @@ export interface SpawnContext {
 export class SegmentManager {
   readonly segments: Segment[] = [];
   totalDistance = 0;
-  private context: () => SpawnContext = () => ({ difficulty: 0, speed: CONFIG.movement.initialSpeed, attract: false });
+  private context: () => SpawnContext = () => ({ attract: false });
 
   constructor(
     private readonly scene: THREE.Scene,
@@ -59,14 +75,15 @@ export class SegmentManager {
 
   private fill(seg: Segment): void {
     const ctx = this.context();
-    const distanceAhead = Math.max(0, -seg.z);
-    const timeToReach = distanceAhead / Math.max(1, ctx.speed);
     const mv = CONFIG.movement;
-    const speedHigh = Math.min(mv.maxSpeed, ctx.speed + mv.speedAcceleration * timeToReach) + CONFIG.powerUps.sprint.bonusSpeed;
-    const speedLow = Math.max(mv.initialSpeed, ctx.speed * 0.85);
+    const nominal = nominalSpeedAt(seg.startD);
+    // Stumbles delay the player (higher speed at a given distance), sprints do
+    // the opposite; the window is wide enough for either, plus the sprint bonus.
+    const speedHigh = Math.min(mv.maxSpeed, nominal * 1.1 + 1) + CONFIG.powerUps.sprint.bonusSpeed;
+    const speedLow = Math.max(mv.initialSpeed, nominal * 0.8);
     const plan = this.generator.generate({
       startD: seg.startD,
-      difficulty: ctx.difficulty,
+      difficulty: clamp01(seg.startD / CONFIG.difficulty.rampDistance),
       speedLow,
       speedHigh,
       attract: ctx.attract,
