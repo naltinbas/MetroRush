@@ -16,6 +16,7 @@ import { applyQuality, CONFIG, type QualityLevel, type ThemeId } from './Config'
 import { GameState } from './GameState';
 import { InputManager } from './InputManager';
 import { SaveManager } from './SaveManager';
+import { THEMES } from './Themes';
 
 /**
  * Wires every system together and owns the state machine:
@@ -128,9 +129,10 @@ export class Game {
     applyQuality(quality);
     this.renderer.shadowMap.enabled = CONFIG.render.shadows;
     this.world.configureShadows();
-    const savedTheme = this.save.get('theme') as ThemeId;
-    const theme = new URLSearchParams(location.search).get('theme') ? CONFIG.theme : savedTheme;
-    if (theme && theme !== CONFIG.theme) this.world.applyTheme(theme);
+    const savedTheme = this.save.get('theme');
+    const fromQuery = new URLSearchParams(location.search).get('theme');
+    const theme: ThemeId = fromQuery ? CONFIG.theme : savedTheme in THEMES ? (savedTheme as ThemeId) : CONFIG.theme;
+    if (theme !== CONFIG.theme) this.world.applyTheme(theme);
     this.audio.muted = this.save.get('muted');
     this.audio.sfxVolume = this.save.get('sfxVolume');
     this.audio.musicVolume = this.save.get('musicVolume');
@@ -336,6 +338,7 @@ export class Game {
   private handleGlobalInput(): void {
     const input = this.input;
     if (this.ui.controlsOpen) {
+      if (input.consume('pause', 0.3)) this.ui.showControls(false);
       input.clear();
       return;
     }
