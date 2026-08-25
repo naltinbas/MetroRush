@@ -101,9 +101,10 @@ export class SegmentManager {
     const L = CONFIG.world.segmentLength;
     for (let i = 0; i < this.segments.length; i++) {
       const seg = this.segments[i];
-      // Player sits at d = seg.z within this segment's local frame.
-      if (seg.z + back < 0) continue;
-      if (seg.z - ahead > L) continue;
+      // Player sits at d = seg.z within this segment's local frame, so the
+      // window [seg.z - back, seg.z + ahead] must overlap [0, L].
+      if (seg.z + ahead < 0) continue;
+      if (seg.z - back > L) continue;
       fn(seg);
     }
   }
