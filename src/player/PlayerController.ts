@@ -245,7 +245,10 @@ export class PlayerController {
     if (input.consume('right', buffer)) this.changeLane(1);
     // Jump stays buffered while airborne so a press just before landing fires.
     if (!this.airborne && input.consume('jump', buffer)) this.jump();
-    if (input.consume('slide', buffer)) this.slide();
+    // Same for slide: a press made during a slide waits for it to end.
+    if (this.airborne || !this.sliding) {
+      if (input.consume('slide', buffer)) this.slide();
+    }
   }
 
   private animate(dt: number): void {
