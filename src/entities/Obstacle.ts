@@ -22,6 +22,7 @@ export class Obstacle extends Entity {
   dDelta = 0;
   private time = 0;
   private activated = false;
+  private horned = false;
   private traveled = 0;
 
   hit = false;
@@ -47,6 +48,7 @@ export class Obstacle extends Entity {
     this.motion = motion;
     this.time = rngPhase;
     this.activated = false;
+    this.horned = false;
     this.traveled = 0;
     this.hit = false;
     this.passed = false;
@@ -72,13 +74,14 @@ export class Obstacle extends Entity {
       const worldZ = segZ - this.dNow;
       if (!this.activated) {
         const travelTime = m.travel / m.speed;
-        const activationDist = speed * travelTime * 0.75 + 12;
-        if (worldZ > -activationDist) {
-          this.activated = true;
+        const activationDist = speed * travelTime * 0.55 + 6;
+        if (!this.horned && worldZ > -(activationDist + speed * 0.9)) {
+          this.horned = true;
           events.emit('tramHorn', {});
           const beam = this.object.getObjectByName('beam');
           if (beam) beam.visible = true;
         }
+        if (worldZ > -activationDist) this.activated = true;
       } else if (this.traveled < m.travel) {
         const step = Math.min(m.speed * dt, m.travel - this.traveled);
         this.dNow -= step;
