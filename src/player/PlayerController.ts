@@ -211,8 +211,10 @@ export class PlayerController {
 
     // Vertical motion.
     if (this.airborne) {
-      this.vy += CONFIG.movement.gravity * dt;
-      this.y += this.vy * dt;
+      // Velocity Verlet keeps the arc (2.25 m, 0.75 s) the same at every frame rate.
+      const g = CONFIG.movement.gravity;
+      this.y += this.vy * dt + 0.5 * g * dt * dt;
+      this.vy += g * dt;
       if (this.y <= 0) {
         this.y = 0;
         this.vy = 0;
