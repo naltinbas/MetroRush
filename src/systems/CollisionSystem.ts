@@ -68,13 +68,13 @@ export class CollisionSystem {
     const magnetRadius = this.powerUps.magnetRadius;
     const ahead = Math.max(18, magnetRadius + 6);
 
-    this.world.segments.forEachNear(3, ahead, (seg) => {
-      const pD0 = seg.z - delta - hd;
-      const pD1 = seg.z + hd;
-      this.checkObstacles(seg, delta, pD0, pD1, pMinX, pMaxX, speed);
-      this.checkShards(seg, dt, pD0, pD1, magnetRadius);
-      this.checkPowerUps(seg, pD0, pD1);
-    });
+    this.fDt = dt;
+    this.fDelta = delta;
+    this.fSpeed = speed;
+    this.fMinX = pMinX;
+    this.fMaxX = pMaxX;
+    this.fMagnet = magnetRadius;
+    this.world.segments.forEachNear(3, ahead, this.visitSegment);
 
     if (this.debugEnabled) {
       this.playerHelper.box.min.set(pMinX, pMinY, -hd);
@@ -93,6 +93,22 @@ export class CollisionSystem {
     });
     this.debugGroup.removeFromParent();
   }
+
+  // Per-frame parameters for visitSegment, so the callback is allocated once.
+  private fDt = 0;
+  private fDelta = 0;
+  private fSpeed = 0;
+  private fMinX = 0;
+  private fMaxX = 0;
+  private fMagnet = 0;
+  private readonly visitSegment = (seg: Segment): void => {
+    const hd = CONFIG.player.halfDepth;
+    const pD0 = seg.z - this.fDelta - hd;
+    const pD1 = seg.z + hd;
+    this.checkObstacles(seg, this.fDelta, pD0, pD1, this.fMinX, this.fMaxX, this.fSpeed);
+    this.checkShards(seg, this.fDt, pD0, pD1, this.fMagnet);
+    this.checkPowerUps(seg, pD0, pD1);
+  };
 
   private hideHelpers(): void {
     for (const h of this.helpers) h.visible = false;

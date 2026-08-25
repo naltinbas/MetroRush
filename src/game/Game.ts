@@ -7,7 +7,7 @@ import { CollisionSystem } from '../systems/CollisionSystem';
 import { DifficultySystem } from '../systems/DifficultySystem';
 import { ParticleSystem } from '../systems/ParticleSystem';
 import { ScoreSystem } from '../systems/ScoreSystem';
-import { UIManager } from '../ui/UIManager';
+import { UIManager, type HudData } from '../ui/UIManager';
 import { EventBus } from '../utils/EventBus';
 import { damp } from '../utils/MathUtils';
 import { WorldManager } from '../world/WorldManager';
@@ -52,6 +52,7 @@ export class Game {
   private dustTimer = 0;
   private running = false;
   private contextLost = false;
+  private readonly hud: HudData = { score: 0, distance: 0, shards: 0, multiplier: 1, effects: [] };
   private readonly onWindowResize = (): void => this.onResize();
   private readonly onVisibilityChange = (): void => {
     if (document.hidden && this.state === GameState.PLAYING) {
@@ -223,7 +224,13 @@ export class Game {
     this.audio.setMusicIntensity(0);
     this.ui.showScreen('hud');
     this.ui.clearFloats();
-    this.ui.updateHud({ score: 0, distance: 0, shards: 0, multiplier: 1, effects: [] });
+    const hud = this.hud;
+    hud.score = 0;
+    hud.distance = 0;
+    hud.shards = 0;
+    hud.multiplier = 1;
+    hud.effects = this.powerUps.list();
+    this.ui.updateHud(hud);
   }
 
   pause(): void {
@@ -431,13 +438,13 @@ export class Game {
     this.cameraController.update(dt, this.player, this.speed, sprint, this.difficulty.speedProgress);
     this.audio.setMusicIntensity(sprint ? 1 : this.difficulty.speedProgress * 0.6);
 
-    this.ui.updateHud({
-      score: this.score.score,
-      distance: this.score.distance,
-      shards: this.score.shards,
-      multiplier: this.score.multiplier,
-      effects: this.powerUps.list(),
-    });
+    const hud = this.hud;
+    hud.score = this.score.score;
+    hud.distance = this.score.distance;
+    hud.shards = this.score.shards;
+    hud.multiplier = this.score.multiplier;
+    hud.effects = this.powerUps.list();
+    this.ui.updateHud(hud);
 
     if (this.player.crashed && this.crashTimer > 1.1) this.gameOver();
   }

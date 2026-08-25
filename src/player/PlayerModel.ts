@@ -1,5 +1,20 @@
 import * as THREE from 'three';
 import { disposeObject } from '../utils/MeshKit';
+
+/** Everything the model needs to pose itself for one frame. Owned and reused by the controller. */
+export interface PlayerPose {
+  runPhase: number;
+  airborne: boolean;
+  vy: number;
+  sliding: boolean;
+  slideT: number;
+  stumbleT: number;
+  crashed: boolean;
+  crashT: number;
+  lateralVel: number;
+  invulnerable: boolean;
+  time: number;
+}
 import { makeGlowTexture } from '../utils/Textures';
 
 /**
@@ -173,19 +188,7 @@ export class PlayerModel {
     this.root.removeFromParent();
   }
 
-  animate(dt: number, opts: {
-    runPhase: number;
-    airborne: boolean;
-    vy: number;
-    sliding: boolean;
-    slideT: number;
-    stumbleT: number;
-    crashed: boolean;
-    crashT: number;
-    lateralVel: number;
-    invulnerable: boolean;
-    time: number;
-  }): void {
+  animate(dt: number, opts: PlayerPose): void {
     const { runPhase, airborne, vy, sliding, slideT, stumbleT, crashed, crashT, lateralVel, invulnerable, time } = opts;
     this.shieldMat.opacity += (0.28 - this.shieldMat.opacity) * Math.min(1, dt * 6);
     this.shield.rotation.y += dt * 0.8;

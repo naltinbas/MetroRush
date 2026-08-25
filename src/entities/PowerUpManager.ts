@@ -17,6 +17,14 @@ export interface ActiveEffect {
 export class PowerUpManager {
   private remaining = new Map<PowerUpId, number>();
   private readonly listCache: ActiveEffect[] = [];
+  /** One reusable entry per power-up so list() allocates nothing. */
+  private readonly slots: Record<PowerUpId, ActiveEffect> = {
+    magnet: { id: 'magnet', remaining: 0, duration: 0 },
+    shield: { id: 'shield', remaining: 0, duration: 0 },
+    amplifier: { id: 'amplifier', remaining: 0, duration: 0 },
+    sprint: { id: 'sprint', remaining: 0, duration: 0 },
+    autoHop: { id: 'autoHop', remaining: 0, duration: 0 },
+  };
 
   constructor(
     private readonly events: EventBus,
@@ -85,7 +93,10 @@ export class PowerUpManager {
     for (const id of POWER_UP_IDS) {
       const r = this.remaining.get(id);
       if (r === undefined) continue;
-      this.listCache.push({ id, remaining: r, duration: POWER_UP_DEFS[id].duration() });
+      const slot = this.slots[id];
+      slot.remaining = r;
+      slot.duration = POWER_UP_DEFS[id].duration();
+      this.listCache.push(slot);
     }
     return this.listCache;
   }

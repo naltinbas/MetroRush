@@ -2,7 +2,7 @@ import { CONFIG, laneX } from '../game/Config';
 import type { InputManager } from '../game/InputManager';
 import type { EventBus } from '../utils/EventBus';
 import { easeOutCubic, lerp } from '../utils/MathUtils';
-import { PlayerModel } from './PlayerModel';
+import { PlayerModel, type PlayerPose } from './PlayerModel';
 import { PlayerState } from './PlayerState';
 
 export type GraceKind = 'none' | 'stumble' | 'shield';
@@ -252,21 +252,35 @@ export class PlayerController {
     }
   }
 
+  private readonly pose: PlayerPose = {
+    runPhase: 0,
+    airborne: false,
+    vy: 0,
+    sliding: false,
+    slideT: 0,
+    stumbleT: 0,
+    crashed: false,
+    crashT: 0,
+    lateralVel: 0,
+    invulnerable: false,
+    time: 0,
+  };
+
   private animate(dt: number): void {
     this.model.root.position.set(this.x, this.y, 0);
-    this.model.animate(dt, {
-      runPhase: this.runPhase,
-      airborne: this.airborne,
-      vy: this.vy,
-      sliding: this.sliding,
-      slideT: this.sliding ? 1 - this.slideTimer / CONFIG.movement.slideDuration : 0,
-      stumbleT: this.stumbleTimer > 0 ? 1 - this.stumbleTimer / CONFIG.movement.stumbleDuration : 0,
-      crashed: this.crashed,
-      crashT: this.crashTimer,
-      lateralVel: this.lateralVelocity,
-      invulnerable: this.invulnerable,
-      time: this.time,
-    });
+    const pose = this.pose;
+    pose.runPhase = this.runPhase;
+    pose.airborne = this.airborne;
+    pose.vy = this.vy;
+    pose.sliding = this.sliding;
+    pose.slideT = this.sliding ? 1 - this.slideTimer / CONFIG.movement.slideDuration : 0;
+    pose.stumbleT = this.stumbleTimer > 0 ? 1 - this.stumbleTimer / CONFIG.movement.stumbleDuration : 0;
+    pose.crashed = this.crashed;
+    pose.crashT = this.crashTimer;
+    pose.lateralVel = this.lateralVelocity;
+    pose.invulnerable = this.invulnerable;
+    pose.time = this.time;
+    this.model.animate(dt, pose);
   }
 
   /** Idle animation for the menu backdrop. */

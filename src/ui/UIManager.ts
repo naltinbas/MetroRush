@@ -248,7 +248,13 @@ export class UIManager {
       this.last.mult = mult;
     }
     for (const [id, chip] of this.chips) {
-      const eff = data.effects.find((e) => e.id === id);
+      let eff: ActiveEffect | undefined;
+      for (let i = 0; i < data.effects.length; i++) {
+        if (data.effects[i].id === id) {
+          eff = data.effects[i];
+          break;
+        }
+      }
       if (!eff) {
         if (!chip.root.hidden) chip.root.hidden = true;
         continue;
