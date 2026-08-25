@@ -166,6 +166,8 @@ export class UIManager {
 
   showControls(open: boolean, returnTo: HTMLElement | null = null): void {
     this.controlsPanel.classList.toggle('hidden', !open);
+    // Keep Tab inside the dialog: everything behind it is inert while it is open.
+    for (const el of Object.values(this.screens)) el.toggleAttribute('inert', open);
     if (open) {
       this.controlsReturn = returnTo;
       window.setTimeout(() => $('btn-controls-close').focus(), 0);
