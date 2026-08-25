@@ -238,8 +238,9 @@ export class SceneryBuilder {
       emissiveMap: this.windowTexture,
       fog,
     });
-    // Windows are sampled in world space so instances of different size get
-    // the same window size, and side faces get windows too.
+    // Windows are sampled in the instance's scaled local space, so every
+    // building gets the same window size, side faces get windows too, and
+    // the pattern stays attached while the building scrolls.
     mat.onBeforeCompile = (shader) => {
       shader.uniforms.uWinScale = { value: new THREE.Vector2(0.3, 0.22) };
       shader.vertexShader = shader.vertexShader
@@ -247,16 +248,15 @@ export class SceneryBuilder {
         .replace(
           '#include <project_vertex>',
           `#include <project_vertex>
-          vec4 wp4 = vec4(transformed, 1.0);
+          vec3 lp = transformed;
           vec3 on = normal;
           vSeed = 0.0;
           #ifdef USE_INSTANCING
-            wp4 = instanceMatrix * wp4;
+            lp = mat3(instanceMatrix) * transformed;
             on = mat3(instanceMatrix) * on;
             vSeed = instanceMatrix[3].x * 0.137 + instanceMatrix[1].y * 0.071;
           #endif
-          wp4 = modelMatrix * wp4;
-          vWPos = wp4.xyz;
+          vWPos = lp;
           vWNormal = normalize(mat3(modelMatrix) * on);`,
         );
       shader.fragmentShader = shader.fragmentShader
