@@ -34,6 +34,7 @@ export class PatternGenerator {
   /** Stats surfaced by the debug overlay. */
   rejected = 0;
   generated = 0;
+  fallbacks = 0;
 
   constructor(seed?: number) {
     this.rng = new Random(seed);
@@ -47,6 +48,7 @@ export class PatternGenerator {
     this.lastPatternId = '';
     this.rejected = 0;
     this.generated = 0;
+    this.fallbacks = 0;
   }
 
   get seed(): number {
@@ -107,6 +109,8 @@ export class PatternGenerator {
     }
 
     if (!plan || !chosen) {
+      this.fallbacks++;
+      if (CONFIG.debug.logPatterns) console.debug(`[gen] fallback breather @${req.startD.toFixed(0)}m`);
       chosen = patternById('breather')!;
       plan = this.spawn(chosen, req);
       const res = this.validator.validate(plan, req.startD, req.speedLow, req.speedHigh);

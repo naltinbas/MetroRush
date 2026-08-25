@@ -438,7 +438,7 @@ export class Game {
       `speed ${this.speed.toFixed(1)} m/s   base ${this.difficulty.baseSpeed.toFixed(1)}   difficulty ${this.difficulty.difficulty.toFixed(2)}`,
       `lane ${this.player.targetLane}   x ${this.player.x.toFixed(2)}   y ${this.player.y.toFixed(2)}`,
       `segments ${this.world.segments.segments.length}   pattern ${seg?.plan?.patternId ?? '-'}   next ${this.world.segments.segments[1]?.plan?.patternId ?? '-'}`,
-      `seed ${gen.seed}   generated ${gen.generated}   rejected ${gen.rejected}`,
+      `seed ${gen.seed}   generated ${gen.generated}   rejected ${gen.rejected}   fallbacks ${gen.fallbacks}`,
       `particles ${this.particles.alive}   pools ${this.world.obstacles.stats()}`,
     ].join('\n');
     this.ui.setDebug(text);
