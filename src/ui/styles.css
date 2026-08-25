@@ -106,25 +106,15 @@ kbd {
 
 .title {
   margin: 0 0 4px;
-  font-size: clamp(42px, 8vw, 84px);
-  font-weight: 900;
-  letter-spacing: 0.04em;
-  line-height: 1;
-  text-transform: uppercase;
+  line-height: 0;
 }
 
-.title-metro {
-  color: var(--cyan);
-  text-shadow:
-    0 0 10px rgba(53, 240, 255, 0.9),
-    0 0 32px rgba(53, 240, 255, 0.45);
-}
-
-.title-rush {
-  color: var(--magenta);
-  text-shadow:
-    0 0 10px rgba(255, 63, 164, 0.9),
-    0 0 32px rgba(255, 63, 164, 0.45);
+.title-logo {
+  display: block;
+  width: min(88%, 520px);
+  height: auto;
+  margin: 0 auto;
+  filter: drop-shadow(0 0 16px rgba(53, 240, 255, 0.22));
 }
 
 .tagline {
