@@ -15,8 +15,23 @@ import type { AvoidAction, SegmentPlan } from './SegmentPlan';
  *    for the action's duration.
  *  - Being idle inside a jump/slide interval means the obstacle was hit.
  *  - Lane changes take `laneChangeDuration * speed` meters and both lanes
- *    must be clear of anything that needs a reaction for the crossing.
+ *    must be clear of anything that needs a reaction for the crossing. A
+ *    chained double change only needs the middle lane clear while it is
+ *    being crossed.
  *  - Blocks can never be stayed in.
+ *
+ * Each validation walks the previous committed segment again together with
+ * the new one, so a player may react to the new segment while still in the
+ * old one, arrivals across the boundary are checked against the obstacles
+ * they land next to, and obstacles on both sides of the boundary merge into
+ * compounds like any others.
+ *
+ * On top of the "some route exists" walk, every lane the player could be in
+ * at the boundary is checked on its own: a lane a player was free to pick
+ * must have a way through the new segment, given they see it coming from
+ * about one segment out. Without this a pattern could be accepted because
+ * lane 2 survives while a player baited into lane 0 by the previous
+ * segment's shards has nowhere to go.
  *
  * Distances derived from reaction time use the highest speed the player may
  * reach before the segment; coverage limits use the lowest. Both err on the
@@ -42,11 +57,26 @@ interface Interval {
   action: AvoidAction;
 }
 
+interface WalkParams {
+  step: number;
+  reaction: number;
+  chainReaction: number;
+  laneDist: number;
+  jumpBusy: number;
+  slideBusy: number;
+}
+
 export interface ValidationResult {
   ok: boolean;
   reason: string;
+  /** State at the far end of the new segment. */
   endState: ValidatorState;
+  /** State at the boundary where the new segment starts. */
+  boundaryState: ValidatorState;
   reachableLanes: number[];
+  /** Where the new segment starts, and its raw intervals; kept by commit(). */
+  segmentStartD: number;
+  rawIntervals: Interval[][];
 }
 
 const INF = Number.POSITIVE_INFINITY;
@@ -60,11 +90,24 @@ function cloneState(s: ValidatorState): ValidatorState {
   };
 }
 
+function emptyLanes(): Interval[][] {
+  const out: Interval[][] = [];
+  for (let i = 0; i < CONFIG.lanes.count; i++) out.push([]);
+  return out;
+}
+
 export class ReachabilityValidator {
+  /** State at the far end of the committed track (informational). */
   state: ValidatorState;
+  /** State at the start of the last committed segment, where the next walk begins. */
+  private windowState: ValidatorState;
+  private windowStartD = 0;
+  /** Unmerged intervals of the last committed segment. */
+  private prevRaw: Interval[][] = emptyLanes();
 
   constructor() {
     this.state = this.initialState(0, Math.floor(CONFIG.lanes.count / 2));
+    this.windowState = cloneState(this.state);
   }
 
   private initialState(startD: number, lane: number): ValidatorState {
@@ -79,20 +122,24 @@ export class ReachabilityValidator {
 
   reset(startD: number, lane: number): void {
     this.state = this.initialState(startD, lane);
+    this.windowState = cloneState(this.state);
+    this.windowStartD = startD;
+    this.prevRaw = emptyLanes();
   }
 
   commit(result: ValidationResult): void {
     this.state = result.endState;
+    this.windowState = result.boundaryState;
+    this.windowStartD = result.segmentStartD;
+    this.prevRaw = result.rawIntervals;
   }
 
-  /** Converts a plan to per-lane merged intervals in absolute track distance. */
-  buildIntervals(plan: SegmentPlan, startD: number, speedLow: number): { intervals: Interval[][]; error: string | null } {
+  /** Converts a plan to per-lane raw intervals in absolute track distance. */
+  private rawIntervals(plan: SegmentPlan, startD: number): { raw: Interval[][]; error: string | null } {
     const laneCount = CONFIG.lanes.count;
     const length = CONFIG.world.segmentLength;
-    const raw: Interval[][] = [];
-    for (let i = 0; i < laneCount; i++) raw.push([]);
+    const raw = emptyLanes();
     let error: string | null = null;
-
     for (const o of plan.obstacles) {
       const def = getObstacleDef(o.defId);
       let laneFrom = o.lane;
@@ -114,51 +161,136 @@ export class ReachabilityValidator {
         raw[l].push({ lane: l, start: startD + dStart, end: startD + dEnd, action: def.avoid });
       }
     }
+    return { raw, error };
+  }
 
+  /** Merges two raw interval sets per lane into compounds and applies the depth limits. */
+  private mergeLanes(a: Interval[][], b: Interval[][], speedLow: number): Interval[][] {
     const maxJumpDepth = Math.min(CONFIG.validator.maxJumpDepth, speedLow * 0.25);
     const maxSlideDepth = Math.min(CONFIG.validator.maxSlideDepth, speedLow * CONFIG.movement.slideDuration * 0.55);
-
-    const merged: Interval[][] = raw.map((list) => {
-      list.sort((a, b) => a.start - b.start);
-      const out: Interval[] = [];
+    const out: Interval[][] = [];
+    for (let l = 0; l < CONFIG.lanes.count; l++) {
+      const list = a[l].concat(b[l]).sort((x, y) => x.start - y.start);
+      const merged: Interval[] = [];
       for (const iv of list) {
-        const last = out[out.length - 1];
+        const last = merged[merged.length - 1];
         if (last && iv.start <= last.end + MERGE_GAP) {
           last.end = Math.max(last.end, iv.end);
           last.action = combine(last.action, iv.action);
         } else {
-          out.push({ ...iv });
+          merged.push({ ...iv });
         }
       }
-      for (const iv of out) {
+      for (const iv of merged) {
         const depth = iv.end - iv.start;
         if (iv.action === 'jump' && depth > maxJumpDepth) iv.action = 'block';
         if (iv.action === 'slide' && depth > maxSlideDepth) iv.action = 'block';
       }
-      return out;
-    });
-    return { intervals: merged, error };
+      out.push(merged);
+    }
+    return out;
+  }
+
+  private params(speedHigh: number): WalkParams {
+    const cfg = CONFIG.validator;
+    const mv = CONFIG.movement;
+    const airTime = (2 * mv.jumpVelocity) / Math.abs(mv.gravity);
+    return {
+      step: cfg.gridStep,
+      reaction: cfg.reactionTime * speedHigh,
+      chainReaction: cfg.laneChainReactionTime * speedHigh,
+      laneDist: mv.laneChangeDuration * speedHigh,
+      jumpBusy: airTime * cfg.jumpBusyFactor * speedHigh,
+      slideBusy: mv.slideDuration * cfg.slideBusyFactor * speedHigh,
+    };
   }
 
   validate(plan: SegmentPlan, startD: number, speedLow: number, speedHigh: number): ValidationResult {
-    const { intervals, error } = this.buildIntervals(plan, startD, speedLow);
-    const st = cloneState(this.state);
-    if (error) return { ok: false, reason: error, endState: st, reachableLanes: [] };
+    const { raw, error } = this.rawIntervals(plan, startD);
+    const failed = (reason: string): ValidationResult => ({
+      ok: false,
+      reason,
+      endState: cloneState(this.state),
+      boundaryState: cloneState(this.windowState),
+      reachableLanes: [],
+      segmentStartD: startD,
+      rawIntervals: raw,
+    });
+    if (error) return failed(error);
 
-    const cfg = CONFIG.validator;
-    const mv = CONFIG.movement;
-    const laneCount = CONFIG.lanes.count;
-    const step = cfg.gridStep;
-    const reaction = cfg.reactionTime * speedHigh;
-    const chainReaction = cfg.laneChainReactionTime * speedHigh;
-    const laneDist = mv.laneChangeDuration * speedHigh;
-    const airTime = (2 * mv.jumpVelocity) / Math.abs(mv.gravity);
-    const jumpBusy = airTime * cfg.jumpBusyFactor * speedHigh;
-    const slideBusy = mv.slideDuration * cfg.slideBusyFactor * speedHigh;
+    const intervals = this.mergeLanes(this.prevRaw, raw, speedLow);
+    const p = this.params(speedHigh);
     const zEnd = startD + CONFIG.world.segmentLength;
 
-    const lanes = st.lanes;
-    const pending = st.pendingArrival;
+    // Some route from the committed track through the new segment.
+    const union = this.walk(cloneState(this.windowState), this.windowStartD, zEnd, intervals, p, startD);
+    if (union.reachable.length === 0) return failed('no surviving lane');
+
+    // Every lane a player could be in at the boundary has to work on its own.
+    const boundary = union.boundary;
+    for (let l = 0; l < CONFIG.lanes.count; l++) {
+      const live = boundary.lanes[l].idle !== INF || boundary.pendingArrival[l] !== INF;
+      if (!live) continue;
+      const start = this.singleLaneStart(l, startD, intervals, p);
+      const single = this.walk(start.state, start.z0, zEnd, intervals, p);
+      if (single.reachable.length === 0) return failed(`lane ${l} has no way through`);
+    }
+
+    return {
+      ok: true,
+      reason: 'ok',
+      endState: { lanes: union.lanes, pendingArrival: union.pending },
+      boundaryState: boundary,
+      reachableLanes: union.reachable,
+      segmentStartD: startD,
+      rawIntervals: raw,
+    };
+  }
+
+  /**
+   * Start state for the per-lane check: the player has settled in `lane`
+   * about one segment before the boundary and can see the new segment.
+   */
+  private singleLaneStart(lane: number, startD: number, intervals: Interval[][], p: WalkParams): { state: ValidatorState; z0: number } {
+    const lookback = Math.min(CONFIG.world.segmentLength, p.reaction + 2 * p.laneDist + p.chainReaction + 1);
+    let z0 = startD - lookback;
+    let idle = z0 - p.reaction;
+    let lastAction: LastAction = 'none';
+    for (const iv of intervals[lane]) {
+      if (iv.action === 'clutter' || iv.end <= z0 || iv.start >= startD) continue;
+      if (iv.action === 'block') {
+        // They can only have entered this lane after the block.
+        z0 = Math.max(z0, iv.end + 0.01);
+        idle = z0;
+        lastAction = 'lane';
+      } else if (iv.start <= z0 && iv.end > z0) {
+        // Mid-action over an obstacle that straddles the start of the window.
+        idle = iv.start + (iv.action === 'jump' ? p.jumpBusy : p.slideBusy);
+        lastAction = iv.action;
+      }
+    }
+    const state = this.initialState(0, -1);
+    state.lanes[lane] = { idle, lastAction };
+    return { state, z0 };
+  }
+
+  /**
+   * Walks the DP from z0 to z1. When `boundaryAt` is given, the state at that
+   * distance is snapshotted before any transition at that step.
+   */
+  private walk(
+    state: ValidatorState,
+    z0: number,
+    z1: number,
+    intervals: Interval[][],
+    p: WalkParams,
+    boundaryAt?: number,
+  ): { lanes: LaneState[]; pending: number[]; reachable: number[]; boundary: ValidatorState } {
+    const laneCount = CONFIG.lanes.count;
+    const step = p.step;
+    let lanes = state.lanes;
+    const pending = state.pendingArrival;
+    let boundary: ValidatorState | null = null;
 
     const covering = (lane: number, a: number, b: number): Interval | null => {
       const list = intervals[lane];
@@ -176,12 +308,19 @@ export class ReachabilityValidator {
       }
       return true;
     };
+    const arrive = (l: number, at: number): void => {
+      // The landing lane must be clear around the arrival, even when the
+      // change was scheduled before this window and never saw these obstacles.
+      if (at < lanes[l].idle && corridorClear(l, at - p.laneDist, at + p.reaction)) lanes[l] = { idle: at, lastAction: 'lane' };
+    };
 
-    for (let z = startD; z < zEnd; z += step) {
-      // Lane-change arrivals scheduled earlier.
+    for (let z = z0; z < z1 - 1e-9; z += step) {
+      if (boundaryAt !== undefined && boundary === null && z >= boundaryAt - 1e-9) {
+        boundary = cloneState({ lanes, pendingArrival: pending });
+      }
       for (let l = 0; l < laneCount; l++) {
         if (pending[l] <= z + step) {
-          if (pending[l] < lanes[l].idle) lanes[l] = { idle: pending[l], lastAction: 'lane' };
+          arrive(l, pending[l]);
           pending[l] = INF;
         }
       }
@@ -191,16 +330,19 @@ export class ReachabilityValidator {
         const cur = lanes[l];
         if (cur.idle === INF) continue;
 
-        // Option: start a lane change from here.
-        const minStart = cur.idle + (cur.lastAction === 'lane' ? chainReaction : reaction);
+        // Option: start a lane change from here, possibly straight through to the lane beyond.
+        const minStart = cur.idle + (cur.lastAction === 'lane' ? p.chainReaction : p.reaction);
         if (minStart <= z) {
           for (const dir of [-1, 1]) {
             const l2 = l + dir;
             if (l2 < 0 || l2 >= laneCount) continue;
-            const arrive = z + laneDist;
-            if (corridorClear(l, z, arrive) && corridorClear(l2, z, arrive + reaction)) {
-              if (arrive < pending[l2]) pending[l2] = arrive;
-            }
+            const at2 = z + p.laneDist;
+            if (!corridorClear(l, z, at2)) continue;
+            if (corridorClear(l2, z, at2 + p.reaction) && at2 < pending[l2]) pending[l2] = at2;
+            const l3 = l2 + dir;
+            if (l3 < 0 || l3 >= laneCount) continue;
+            const at3 = at2 + p.chainReaction + p.laneDist;
+            if (corridorClear(l2, z, at3) && corridorClear(l3, at2 + p.chainReaction, at3 + p.reaction) && at3 < pending[l3]) pending[l3] = at3;
           }
         }
 
@@ -213,40 +355,31 @@ export class ReachabilityValidator {
         }
         const firstStep = iv.start >= z && iv.start < z + step;
         if (firstStep) {
-          if (cur.idle + reaction <= iv.start) {
-            next[l].idle = iv.start + (iv.action === 'jump' ? jumpBusy : slideBusy);
+          if (cur.idle + p.reaction <= iv.start) {
+            next[l].idle = iv.start + (iv.action === 'jump' ? p.jumpBusy : p.slideBusy);
             next[l].lastAction = iv.action;
           } else {
             next[l].idle = INF;
           }
-        } else if (iv.start < startD && z === startD) {
-          // Interval began in the previous segment; the carried state already accounts for it.
-          if (cur.idle <= z) next[l].idle = INF;
-        } else if (cur.idle <= z) {
-          // Idle in the middle of an obstacle that needed an action: collision.
+        } else if (cur.idle < z + step) {
+          // Idle somewhere inside an obstacle that needed an action: collision.
           next[l].idle = INF;
         }
       }
-      for (let l = 0; l < laneCount; l++) lanes[l] = next[l];
+      lanes = next;
     }
 
-    // Flush arrivals that land exactly at the segment boundary.
     for (let l = 0; l < laneCount; l++) {
-      if (pending[l] <= zEnd && pending[l] < lanes[l].idle) {
-        lanes[l] = { idle: pending[l], lastAction: 'lane' };
+      if (pending[l] <= z1) {
+        arrive(l, pending[l]);
         pending[l] = INF;
       }
     }
+    if (boundary === null) boundary = cloneState({ lanes, pendingArrival: pending });
 
-    const reachableLanes: number[] = [];
-    for (let l = 0; l < laneCount; l++) if (lanes[l].idle !== INF || pending[l] !== INF) reachableLanes.push(l);
-    const ok = reachableLanes.length > 0;
-    return {
-      ok,
-      reason: ok ? 'ok' : 'no surviving lane',
-      endState: { lanes, pendingArrival: pending },
-      reachableLanes,
-    };
+    const reachable: number[] = [];
+    for (let l = 0; l < laneCount; l++) if (lanes[l].idle !== INF || pending[l] !== INF) reachable.push(l);
+    return { lanes, pending, reachable, boundary };
   }
 }
 
