@@ -65,6 +65,10 @@ export class PlayerController {
     return this.stumbleTimer > 0;
   }
 
+  get slidePending(): boolean {
+    return this.slideQueued;
+  }
+
   /** 1 = full speed. Drops during a stumble and recovers over stumbleDuration. */
   get speedFactor(): number {
     if (this.stumbleTimer <= 0) return 1;

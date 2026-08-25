@@ -15,6 +15,7 @@ import type { ScoreSystem } from './ScoreSystem';
  */
 export class CollisionSystem {
   private readonly box: AABB = makeAABB();
+  private readonly scratch: AABB = makeAABB();
   private readonly debugGroup = new THREE.Group();
   private readonly helpers: THREE.Box3Helper[] = [];
   private readonly playerHelper: THREE.Box3Helper;
@@ -113,9 +114,11 @@ export class CollisionSystem {
             const bonus = this.score.addNearMiss();
             this.events.emit('nearMiss', { bonus, x: ob.x, y: 1.2, z: seg.z - box.minD });
           }
-        } else if (p.autoHopArmed && ob.def.autoHop && !p.airborne && xOverlap) {
+        } else if (p.autoHopArmed && ob.def.autoHop && ob.def.avoid === 'jump' && !p.airborne && !p.sliding && !p.slidePending && xOverlap) {
           const distAhead = box.minD - pD1;
-          if (distAhead > 0 && distAhead <= CONFIG.powerUps.autoHop.leadTime * speed) p.jump(true);
+          if (distAhead > 0 && distAhead <= CONFIG.powerUps.autoHop.leadTime * speed && !this.overheadAhead(pMinX, pMaxX, speed)) {
+            p.jump(true);
+          }
         }
         continue;
       }
@@ -153,6 +156,27 @@ export class CollisionSystem {
       }
       if (ob.fatal && !ob.hit && near) ob.nearMissCandidate = true;
     }
+  }
+
+  /** True when a slide-under obstacle sits in the player's lane inside one jump's worth of track. */
+  private overheadAhead(pMinX: number, pMaxX: number, speed: number): boolean {
+    const mv = CONFIG.movement;
+    const reach = ((2 * mv.jumpVelocity) / Math.abs(mv.gravity)) * speed + CONFIG.player.halfDepth;
+    let found = false;
+    this.world.segments.forEachNear(1, reach + 2, (seg) => {
+      if (found) return;
+      for (let i = 0; i < seg.obstacles.length; i++) {
+        const o = seg.obstacles[i];
+        if (!o.active || o.passed || o.def.avoid !== 'slide') continue;
+        o.writeBounds(this.scratch);
+        const ahead = this.scratch.minD - seg.z;
+        if (ahead < reach && this.scratch.maxD > seg.z - CONFIG.player.halfDepth && this.scratch.maxX > pMinX && this.scratch.minX < pMaxX) {
+          found = true;
+          return;
+        }
+      }
+    });
+    return found;
   }
 
   private resolveHit(ob: Segment['obstacles'][number], box: AABB, seg: Segment): void {

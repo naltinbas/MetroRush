@@ -176,7 +176,7 @@ export const OBSTACLE_DEFS: readonly ObstacleDef[] = [
     width: laneWidth(1) - 0.4,
     yMin: 0,
     yMax: 0.55,
-    autoHop: true,
+    autoHop: false,
     build: () => {
       const kit = new MeshKit();
       for (const [x, z] of [
