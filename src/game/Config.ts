@@ -52,8 +52,8 @@ export const CONFIG = {
     startOffset: 12,
     /** No obstacles spawn within this track distance from the start. */
     safeDistance: 96,
-    fogNear: 70,
-    fogFar: 236,
+    fogNear: 90,
+    fogFar: 250,
     /** Widths of the deck beyond the outer lane edges. */
     deckMargin: 1.4,
   },
