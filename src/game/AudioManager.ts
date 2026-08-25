@@ -62,6 +62,8 @@ export class AudioManager {
   private musicTimer: number | null = null;
   private musicStep = 0;
   private nextStepTime = 0;
+  /** Set while the game is paused so menu clicks cannot wake the context. */
+  private paused = false;
   private musicPlaying = false;
   private intensity = 0;
 
@@ -76,7 +78,7 @@ export class AudioManager {
   /** Call from a user gesture (click / keydown). Safe to call repeatedly. */
   init(): void {
     if (this.ctx) {
-      if (this.ctx.state === 'suspended') void this.ctx.resume();
+      if (this.ctx.state === 'suspended' && !this.paused) void this.ctx.resume();
       return;
     }
     const Ctor = window.AudioContext ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
@@ -107,10 +109,12 @@ export class AudioManager {
   }
 
   suspend(): void {
+    this.paused = true;
     if (this.ctx && this.ctx.state === 'running') void this.ctx.suspend();
   }
 
   resume(): void {
+    this.paused = false;
     if (this.ctx && this.ctx.state === 'suspended') void this.ctx.resume();
   }
 
