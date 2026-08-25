@@ -157,6 +157,7 @@ export class UIManager {
       el.classList.toggle('hidden', !on);
     }
     if (name === 'pause') this.screens.hud.classList.remove('hidden');
+    if (this.screens.hud.classList.contains('hidden')) this.clearFloats();
     this.showControls(false);
     const focus: Record<string, string> = { menu: 'btn-play', pause: 'btn-resume', gameover: 'btn-restart-go' };
     const id = focus[name];
@@ -265,7 +266,12 @@ export class UIManager {
     el.style.left = `${45 + Math.random() * 10}%`;
     this.hudFloat.appendChild(el);
     el.addEventListener('animationend', () => el.remove());
+    el.addEventListener('animationcancel', () => el.remove());
     while (this.hudFloat.childElementCount > 6) this.hudFloat.firstElementChild?.remove();
+  }
+
+  clearFloats(): void {
+    this.hudFloat.replaceChildren();
   }
 
   showGameOver(d: GameOverData): void {

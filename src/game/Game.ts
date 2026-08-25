@@ -221,6 +221,7 @@ export class Game {
     this.audio.startMusic();
     this.audio.setMusicIntensity(0);
     this.ui.showScreen('hud');
+    this.ui.clearFloats();
     this.ui.updateHud({ score: 0, distance: 0, shards: 0, multiplier: 1, effects: [] });
   }
 
