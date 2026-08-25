@@ -35,11 +35,14 @@ export class InputManager {
     const editable =
       target !== null &&
       (target.tagName === 'INPUT' || target.tagName === 'SELECT' || target.tagName === 'TEXTAREA' || target.isContentEditable);
-    if (!editable && SCROLL_KEYS.has(e.code)) e.preventDefault();
+    const isButton = target !== null && (target.tagName === 'BUTTON' || target.tagName === 'A');
+    if (!editable && SCROLL_KEYS.has(e.code) && !(isButton && e.code === 'Space')) e.preventDefault();
     if (e.repeat) return;
     const action = KEYMAP[e.code];
     if (!action) return;
     if (editable && action !== 'pause') return;
+    // A focused button activates itself on Enter; do not also treat it as "confirm".
+    if (isButton && action === 'confirm') return;
     this.held.add(action);
     this.pressTime.set(action, performance.now() / 1000);
   };
