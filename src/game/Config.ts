@@ -176,6 +176,9 @@ export function trackHalfWidth(): number {
 }
 
 /** ?debug=true&seed=123&quality=low&theme=midnight&colliders=1 */
+/** Config keys that were set explicitly on the query string. */
+export const OVERRIDES = new Set<string>();
+
 export function applyQueryOverrides(search: string): void {
   const params = new URLSearchParams(search);
   const debug = params.get('debug');
@@ -189,9 +192,15 @@ export function applyQueryOverrides(search: string): void {
   const seed = params.get('seed');
   if (seed !== null && seed !== '' && Number.isFinite(Number(seed))) CONFIG.debug.seed = Number(seed) >>> 0;
   const quality = params.get('quality');
-  if (quality === 'low' || quality === 'high') CONFIG.quality = quality;
+  if (quality === 'low' || quality === 'high') {
+    CONFIG.quality = quality;
+    OVERRIDES.add('quality');
+  }
   const theme = params.get('theme');
-  if (theme === 'dusk' || theme === 'midnight' || theme === 'ember') CONFIG.theme = theme;
+  if (theme === 'dusk' || theme === 'midnight' || theme === 'ember') {
+    CONFIG.theme = theme;
+    OVERRIDES.add('theme');
+  }
 }
 
 export function applyQuality(level: QualityLevel): void {

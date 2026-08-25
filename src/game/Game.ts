@@ -12,7 +12,7 @@ import { EventBus } from '../utils/EventBus';
 import { damp } from '../utils/MathUtils';
 import { WorldManager } from '../world/WorldManager';
 import { AudioManager } from './AudioManager';
-import { applyQuality, CONFIG, type QualityLevel, type ThemeId } from './Config';
+import { applyQuality, CONFIG, OVERRIDES, type QualityLevel, type ThemeId } from './Config';
 import { GameState } from './GameState';
 import { InputManager } from './InputManager';
 import { SaveManager } from './SaveManager';
@@ -53,6 +53,9 @@ export class Game {
   private running = false;
 
   constructor(private readonly container: HTMLElement) {
+    // Quality has to be known before anything that sizes buffers is built.
+    const savedQuality = this.save.get('quality');
+    applyQuality(OVERRIDES.has('quality') ? CONFIG.quality : savedQuality === 'low' ? 'low' : 'high');
     this.renderer = this.createRenderer();
     this.container.appendChild(this.renderer.domElement);
     this.cameraController = new CameraController(window.innerWidth / window.innerHeight);
@@ -125,10 +128,6 @@ export class Game {
   }
 
   private applySavedSettings(): void {
-    const quality = CONFIG.quality !== 'high' ? CONFIG.quality : this.save.get('quality');
-    applyQuality(quality);
-    this.renderer.shadowMap.enabled = CONFIG.render.shadows;
-    this.world.configureShadows();
     const savedTheme = this.save.get('theme');
     const fromQuery = new URLSearchParams(location.search).get('theme');
     const theme: ThemeId = fromQuery ? CONFIG.theme : savedTheme in THEMES ? (savedTheme as ThemeId) : CONFIG.theme;
@@ -273,6 +272,8 @@ export class Game {
     this.save.set('quality', q);
     this.renderer.shadowMap.enabled = CONFIG.render.shadows;
     this.world.configureShadows();
+    this.world.scenery.setQuality(q);
+    this.particles.setQuality(q);
     // Materials compiled with shadows need a recompile when the flag flips.
     this.scene.traverse((o) => {
       const mesh = o as THREE.Mesh;

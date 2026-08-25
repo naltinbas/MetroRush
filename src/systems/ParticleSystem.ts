@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { CONFIG } from '../game/Config';
+import { CONFIG, type QualityLevel } from '../game/Config';
 
 export interface EmitOptions {
   x: number;
@@ -28,6 +28,8 @@ export interface EmitOptions {
 export class ParticleSystem {
   readonly mesh: THREE.InstancedMesh;
   private readonly capacity: number;
+  /** Live particles are capped here; lower on low quality. */
+  private limit: number;
   private count = 0;
   private readonly px: Float32Array;
   private readonly py: Float32Array;
@@ -50,7 +52,8 @@ export class ParticleSystem {
   private speedLineTimer = 0;
 
   constructor() {
-    this.capacity = CONFIG.quality === 'low' ? CONFIG.effects.particleCapacityLow : CONFIG.effects.particleCapacity;
+    this.capacity = CONFIG.effects.particleCapacity;
+    this.limit = this.capacity;
     const n = this.capacity;
     this.px = new Float32Array(n);
     this.py = new Float32Array(n);
@@ -73,6 +76,11 @@ export class ParticleSystem {
     this.mesh.count = 0;
     for (let i = 0; i < n; i++) this.mesh.setColorAt(i, this.tmpColor.set(0xffffff));
     if (this.mesh.instanceColor) this.mesh.instanceColor.setUsage(THREE.DynamicDrawUsage);
+    this.setQuality(CONFIG.quality);
+  }
+
+  setQuality(level: QualityLevel): void {
+    this.limit = level === 'low' ? CONFIG.effects.particleCapacityLow : this.capacity;
   }
 
   clear(): void {
@@ -84,7 +92,7 @@ export class ParticleSystem {
     const spread = o.spread ?? 1;
     const palette = Array.isArray(o.color) ? o.color : [o.color];
     for (let n = 0; n < o.count; n++) {
-      if (this.count >= this.capacity) return;
+      if (this.count >= this.limit) return;
       const i = this.count++;
       this.px[i] = o.x + (Math.random() - 0.5) * 0.3;
       this.py[i] = o.y + (Math.random() - 0.5) * 0.3;

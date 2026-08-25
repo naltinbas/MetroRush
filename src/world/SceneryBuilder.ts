@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { CONFIG, trackHalfWidth } from '../game/Config';
+import { CONFIG, trackHalfWidth, type QualityLevel } from '../game/Config';
 import type { Theme } from '../game/Themes';
 import { MeshKit, getGlowMaterial } from '../utils/MeshKit';
 import { ObjectPool } from '../utils/ObjectPool';
@@ -181,7 +181,7 @@ export class SceneryBuilder {
     const boxGeo = new THREE.BoxGeometry(1, 1, 1);
     boxGeo.translate(0, 0.5, 0);
 
-    const nearCount = CONFIG.quality === 'low' ? 70 : 130;
+    const nearCount = 130;
     this.nearSkyline = new THREE.InstancedMesh(boxGeo, this.buildingMaterialNear, nearCount);
     this.nearSkyline.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
     this.nearSkyline.frustumCulled = false;
@@ -199,6 +199,7 @@ export class SceneryBuilder {
       this.nearSkyline.setColorAt(i, this.tmpColor);
     }
     this.writeNearMatrices();
+    this.setQuality(CONFIG.quality);
     this.root.add(this.nearSkyline);
 
     const farCount = 110;
@@ -283,6 +284,11 @@ export class SceneryBuilder {
       this.nearSkyline.setMatrixAt(i, this.tmpMatrix);
     }
     this.nearSkyline.instanceMatrix.needsUpdate = true;
+  }
+
+  /** Low quality draws half the scrolling skyline. The buffers stay allocated so this can flip at runtime. */
+  setQuality(level: QualityLevel): void {
+    this.nearSkyline.count = level === 'low' ? Math.floor(this.nearData.length / 2) : this.nearData.length;
   }
 
   update(dt: number, speed: number, _time: number): void {
