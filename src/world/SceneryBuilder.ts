@@ -189,8 +189,8 @@ export class SceneryBuilder {
     const hw = trackHalfWidth();
     for (let i = 0; i < nearCount; i++) {
       const side = this.rng.sign();
-      const x = side * (hw + 10 + Math.pow(this.rng.next(), 1.3) * 110);
-      const h = 10 + Math.pow(this.rng.next(), 1.6) * 62;
+      const x = side * (hw + 14 + Math.pow(this.rng.next(), 1.3) * 110);
+      const h = 8 + Math.pow(this.rng.next(), 1.8) * 60;
       const w = this.rng.range(6, 16);
       const d = this.rng.range(6, 16);
       this.nearData.push({ x, w, h, d });
@@ -292,7 +292,7 @@ export class SceneryBuilder {
       if (this.nearZ[i] - this.nearData[i].d / 2 > 70) {
         this.nearZ[i] -= 400;
         const b = this.nearData[i];
-        b.h = 10 + Math.pow(this.rng.next(), 1.6) * 62;
+        b.h = 8 + Math.pow(this.rng.next(), 1.8) * 60;
       }
     }
     this.writeNearMatrices();
