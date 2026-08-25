@@ -58,6 +58,9 @@ export class Obstacle extends Entity {
     if (motion?.type === 'lateral') this.x = laneX(motion.laneFrom);
     this.object.position.set(this.x, 0, -d);
     this.object.visible = true;
+    // Gantry posts belong at the deck edges no matter which lane the obstacle is in.
+    const gantry = this.object.getObjectByName('gantry');
+    if (gantry) gantry.position.x = -this.x;
     const beam = this.object.getObjectByName('beam');
     if (beam) beam.visible = false;
   }

@@ -41,14 +41,22 @@ function laneWidth(span: number): number {
   return span * LANE - 0.8;
 }
 
-/** Two posts at the deck edges with a crossbar; overhead obstacles hang from it. */
-function gantry(kit: MeshKit, barY: number, depth: number, color = STEEL): void {
+/**
+ * Two posts at the deck edges with a crossbar; overhead obstacles hang from it.
+ * Named 'gantry' so Obstacle.place() can keep it in track space while the
+ * rest of the obstacle sits in its lane.
+ */
+function gantry(barY: number, depth: number, color = STEEL): THREE.Object3D {
+  const kit = new MeshKit();
   const hx = trackHalfWidth() - 0.5;
   kit.box(0.3, barY + 0.3, 0.3, -hx, (barY + 0.3) / 2, 0, color);
   kit.box(0.3, barY + 0.3, 0.3, hx, (barY + 0.3) / 2, 0, color);
   kit.box(hx * 2 + 0.3, 0.28, depth, 0, barY + 0.15, 0, color);
   kit.box(0.12, 0.12, depth + 0.1, -hx, barY + 0.36, 0, WARN_YELLOW, { glow: true });
   kit.box(0.12, 0.12, depth + 0.1, hx, barY + 0.36, 0, WARN_YELLOW, { glow: true });
+  const obj = kit.build();
+  obj.name = 'gantry';
+  return obj;
 }
 
 function crate(kit: MeshKit, x: number, y: number, z: number, w: number, h: number, d: number, color: number): void {
@@ -217,8 +225,9 @@ export const OBSTACLE_DEFS: readonly ObstacleDef[] = [
     yMax: 3.2,
     autoHop: false,
     build: () => {
+      const root = new THREE.Group();
+      root.add(gantry(3.6, 0.3));
       const kit = new MeshKit();
-      gantry(kit, 3.6, 0.3);
       // Hanger rods and the sign board itself.
       kit.box(0.08, 1.2, 0.08, -0.9, 3.0, 0, STEEL);
       kit.box(0.08, 1.2, 0.08, 0.9, 3.0, 0, STEEL);
@@ -227,7 +236,8 @@ export const OBSTACLE_DEFS: readonly ObstacleDef[] = [
       kit.box(2.2, 0.8, 0.06, 0, 1.9, -0.1, MAGENTA, { glow: true });
       kit.box(1.4, 0.18, 0.02, 0, 1.9, 0.14, 0x1a0a14);
       kit.box(2.5, 0.08, 0.24, 0, 1.36, 0, WARN_RED, { glow: true });
-      return kit.build();
+      root.add(kit.build());
+      return root;
     },
   },
   {
@@ -241,8 +251,9 @@ export const OBSTACLE_DEFS: readonly ObstacleDef[] = [
     yMax: 2.8,
     autoHop: false,
     build: () => {
+      const root = new THREE.Group();
+      root.add(gantry(3.4, 0.4));
       const kit = new MeshKit();
-      gantry(kit, 3.4, 0.4);
       const len = trackHalfWidth() * 2 - 0.4;
       kit.cylinder(0.4, 0.4, len, 0, 1.8, 0, TEAL, { rz: Math.PI / 2, segments: 14 });
       kit.cylinder(0.46, 0.46, 0.3, -3.2, 1.8, 0, STEEL, { rz: Math.PI / 2 });
@@ -252,7 +263,8 @@ export const OBSTACLE_DEFS: readonly ObstacleDef[] = [
         kit.box(0.14, 1.3, 0.14, x, 2.85, 0, STEEL);
         kit.sphere(0.12, x, 1.28, 0, WARN_RED, { glow: true, segments: 8 });
       }
-      return kit.build();
+      root.add(kit.build());
+      return root;
     },
   },
   {
@@ -267,8 +279,8 @@ export const OBSTACLE_DEFS: readonly ObstacleDef[] = [
     autoHop: false,
     build: () => {
       const root = new THREE.Group();
+      root.add(gantry(3.8, 0.5, 0x5a4a7a));
       const base = new MeshKit();
-      gantry(base, 3.8, 0.5, 0x5a4a7a);
       base.box(0.9, 0.5, 0.9, 0, 3.45, 0, DARK);
       root.add(base.build());
       const arm = new MeshKit();
@@ -299,15 +311,17 @@ export const OBSTACLE_DEFS: readonly ObstacleDef[] = [
     yMax: 2.9,
     autoHop: false,
     build: () => {
+      const root = new THREE.Group();
+      root.add(gantry(3.5, 0.3));
       const kit = new MeshKit();
-      gantry(kit, 3.5, 0.3);
       const len = LANE * 2 + 0.4;
       kit.box(len, 0.32, 0.32, 0, 1.75, 0, WARN_YELLOW);
       for (let i = 0; i < 6; i++) kit.box(0.3, 0.34, 0.34, -len / 2 + 0.5 + i * (len / 6), 1.75, 0, DARK);
       kit.box(0.12, 1.6, 0.12, -len / 2 + 0.3, 2.7, 0, STEEL);
       kit.box(0.12, 1.6, 0.12, len / 2 - 0.3, 2.7, 0, STEEL);
       kit.sphere(0.12, 0, 1.5, 0.15, WARN_RED, { glow: true, segments: 8 });
-      return kit.build();
+      root.add(kit.build());
+      return root;
     },
   },
   {
