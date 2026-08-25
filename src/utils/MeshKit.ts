@@ -62,7 +62,13 @@ export class MeshKit {
   private bodyParts: THREE.BufferGeometry[] = [];
   private glowParts: THREE.BufferGeometry[] = [];
 
-  private place(geo: THREE.BufferGeometry, x: number, y: number, z: number, opts: PartOptions | undefined, color: number | string): void {
+  private place(source: THREE.BufferGeometry, x: number, y: number, z: number, opts: PartOptions | undefined, color: number | string): void {
+    // Polyhedron-based shapes come non-indexed; mergeGeometries needs all parts alike.
+    let geo = source;
+    if (geo.index) {
+      geo = source.toNonIndexed();
+      source.dispose();
+    }
     tmpEuler.set(opts?.rx ?? 0, opts?.ry ?? 0, opts?.rz ?? 0);
     tmpQuat.setFromEuler(tmpEuler);
     tmpPos.set(x, y, z);
