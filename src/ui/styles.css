@@ -425,6 +425,10 @@ kbd {
   max-width: 60vw;
 }
 
+.chip[hidden] {
+  display: none;
+}
+
 .chip {
   --chip: #fff;
   display: flex;
