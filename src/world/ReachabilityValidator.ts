@@ -164,7 +164,13 @@ export class ReachabilityValidator {
     return { raw, error };
   }
 
-  /** Merges two raw interval sets per lane into compounds and applies the depth limits. */
+  /**
+   * Merges two raw interval sets per lane into compounds and applies the
+   * depth limits. Obstacles almost touching merge whatever they are; two
+   * obstacles needing the same action also merge when one jump or one slide
+   * at the low end of the speed range covers both, so a sign followed by a
+   * bar a few meters later reads as a single slide instead of a dead lane.
+   */
   private mergeLanes(a: Interval[][], b: Interval[][], speedLow: number): Interval[][] {
     const maxJumpDepth = Math.min(CONFIG.validator.maxJumpDepth, speedLow * 0.25);
     const maxSlideDepth = Math.min(CONFIG.validator.maxSlideDepth, speedLow * CONFIG.movement.slideDuration * 0.55);
@@ -174,7 +180,12 @@ export class ReachabilityValidator {
       const merged: Interval[] = [];
       for (const iv of list) {
         const last = merged[merged.length - 1];
-        if (last && iv.start <= last.end + MERGE_GAP) {
+        const touching = last !== undefined && iv.start <= last.end + MERGE_GAP;
+        const oneAction =
+          last !== undefined &&
+          last.action === iv.action &&
+          ((iv.action === 'slide' && iv.end - last.start <= maxSlideDepth) || (iv.action === 'jump' && iv.end - last.start <= maxJumpDepth));
+        if (last && (touching || oneAction)) {
           last.end = Math.max(last.end, iv.end);
           last.action = combine(last.action, iv.action);
         } else {

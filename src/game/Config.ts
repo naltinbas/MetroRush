@@ -108,7 +108,7 @@ export const CONFIG = {
     gridStep: 0.5,
     /** Deepest single obstacle a jump is allowed to clear (meters along the track). */
     maxJumpDepth: 4.5,
-    maxSlideDepth: 6.5,
+    maxSlideDepth: 14,
     /** Speed floor used for coverage checks; speed ceiling adds this over the projected speed. */
     speedSlack: 6,
   },
