@@ -210,7 +210,9 @@ export class Game {
     if (this.state !== GameState.PLAYING) return;
     this.state = GameState.PAUSED;
     this.audio.play('pause');
-    this.audio.suspend();
+    window.setTimeout(() => {
+      if (this.state === GameState.PAUSED) this.audio.suspend();
+    }, 180);
     this.ui.showScreen('pause');
   }
 
