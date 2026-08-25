@@ -63,10 +63,19 @@ const SKY_FRAG = `
 uniform vec3 uTop;
 uniform vec3 uHorizon;
 uniform vec3 uBottom;
+uniform vec3 uFog;
 varying vec3 vDir;
 void main() {
   float h = normalize(vDir).y;
-  vec3 c = h > 0.0 ? mix(uHorizon, uTop, pow(h, 0.55)) : mix(uHorizon, uBottom, pow(-h, 0.45));
+  // The band right at the horizon is the fog colour, so anything fully
+  // fogged out there disappears into the sky instead of showing as a slab.
+  vec3 c;
+  if (h > 0.0) {
+    vec3 band = mix(uFog, uHorizon, smoothstep(0.0, 0.14, h));
+    c = mix(band, uTop, pow(h, 0.55));
+  } else {
+    c = mix(uFog, uBottom, pow(-h, 0.45));
+  }
   gl_FragColor = vec4(c, 1.0);
   #include <tonemapping_fragment>
   #include <colorspace_fragment>
@@ -102,9 +111,13 @@ export class SceneryBuilder {
   private readonly tmpQuat = new THREE.Quaternion();
   private readonly tmpScale = new THREE.Vector3();
   private readonly tmpColor = new THREE.Color();
+  private readonly fogColor = new THREE.Color();
+  /** Metres travelled since each near building was recycled; drives the fade-in. */
+  private readonly nearAge: Float32Array;
 
   constructor(theme: Theme) {
     this.theme = theme;
+    this.fogColor.set(theme.fog);
 
     // Sky dome.
     this.skyMaterial = new THREE.ShaderMaterial({
@@ -112,6 +125,7 @@ export class SceneryBuilder {
         uTop: { value: new THREE.Color(theme.skyTop) },
         uHorizon: { value: new THREE.Color(theme.skyHorizon) },
         uBottom: { value: new THREE.Color(theme.skyBottom) },
+        uFog: { value: new THREE.Color(theme.fog) },
       },
       vertexShader: SKY_VERT,
       fragmentShader: SKY_FRAG,
@@ -178,7 +192,7 @@ export class SceneryBuilder {
     // Skylines.
     this.windowTexture = makeWindowTexture();
     this.buildingMaterialNear = this.makeBuildingMaterial(1.0, true);
-    this.buildingMaterialFar = this.makeBuildingMaterial(0.55, false);
+    this.buildingMaterialFar = this.makeBuildingMaterial(0.35, false);
     const boxGeo = new THREE.BoxGeometry(1, 1, 1);
     boxGeo.translate(0, 0.5, 0);
 
@@ -187,6 +201,7 @@ export class SceneryBuilder {
     this.nearSkyline.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
     this.nearSkyline.frustumCulled = false;
     this.nearZ = new Float32Array(nearCount);
+    this.nearAge = new Float32Array(nearCount).fill(1000);
     const hw = trackHalfWidth();
     for (let i = 0; i < nearCount; i++) {
       const side = this.rng.sign();
@@ -215,7 +230,7 @@ export class SceneryBuilder {
       this.tmpQuat.identity();
       this.tmpMatrix.compose(this.tmpPos, this.tmpQuat, this.tmpScale);
       this.farSkyline.setMatrixAt(i, this.tmpMatrix);
-      this.tmpColor.set(this.rng.pick(theme.buildingTints));
+      this.tmpColor.set(this.rng.pick(theme.buildingTints)).lerp(this.fogColor, 0.8);
       this.farSkyline.setColorAt(i, this.tmpColor);
     }
     this.farSkyline.instanceMatrix.needsUpdate = true;
@@ -278,8 +293,10 @@ export class SceneryBuilder {
   private writeNearMatrices(): void {
     for (let i = 0; i < this.nearData.length; i++) {
       const b = this.nearData[i];
+      // Recycled buildings grow out of the ground over their first 90 m instead of popping in.
+      const grown = Math.min(1, this.nearAge[i] / 90);
       this.tmpPos.set(b.x, -60, this.nearZ[i]);
-      this.tmpScale.set(b.w, b.h + 60, b.d);
+      this.tmpScale.set(b.w, (b.h + 60) * grown, b.d);
       this.tmpQuat.identity();
       this.tmpMatrix.compose(this.tmpPos, this.tmpQuat, this.tmpScale);
       this.nearSkyline.setMatrixAt(i, this.tmpMatrix);
@@ -296,8 +313,10 @@ export class SceneryBuilder {
     const dz = speed * dt;
     for (let i = 0; i < this.nearZ.length; i++) {
       this.nearZ[i] += dz;
+      this.nearAge[i] += dz;
       if (this.nearZ[i] - this.nearData[i].d / 2 > 70) {
         this.nearZ[i] -= 400;
+        this.nearAge[i] = 0;
         const b = this.nearData[i];
         b.h = 8 + Math.pow(this.rng.next(), 1.8) * 60;
       }
@@ -314,6 +333,8 @@ export class SceneryBuilder {
     (this.skyMaterial.uniforms.uTop.value as THREE.Color).set(theme.skyTop);
     (this.skyMaterial.uniforms.uHorizon.value as THREE.Color).set(theme.skyHorizon);
     (this.skyMaterial.uniforms.uBottom.value as THREE.Color).set(theme.skyBottom);
+    (this.skyMaterial.uniforms.uFog.value as THREE.Color).set(theme.fog);
+    this.fogColor.set(theme.fog);
     this.starsMaterial.opacity = theme.starBrightness;
     this.cloudMaterial.color.set(theme.cloudTint);
     this.groundMaterial.color.set(theme.fog);
@@ -323,7 +344,7 @@ export class SceneryBuilder {
     }
     if (this.nearSkyline.instanceColor) this.nearSkyline.instanceColor.needsUpdate = true;
     for (let i = 0; i < this.farSkyline.count; i++) {
-      this.tmpColor.set(this.rng.pick(theme.buildingTints));
+      this.tmpColor.set(this.rng.pick(theme.buildingTints)).lerp(this.fogColor, 0.8);
       this.farSkyline.setColorAt(i, this.tmpColor);
     }
     if (this.farSkyline.instanceColor) this.farSkyline.instanceColor.needsUpdate = true;
