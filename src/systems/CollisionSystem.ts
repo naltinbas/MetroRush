@@ -70,7 +70,7 @@ export class CollisionSystem {
     this.world.segments.forEachNear(3, ahead, (seg) => {
       const pD0 = seg.z - delta - hd;
       const pD1 = seg.z + hd;
-      this.checkObstacles(seg, pD0, pD1, pMinX, pMaxX, pMinY, pMaxY, speed);
+      this.checkObstacles(seg, delta, pD0, pD1, pMinX, pMaxX, speed);
       this.checkShards(seg, dt, pD0, pD1, magnetRadius);
       this.checkPowerUps(seg, pD0, pD1);
     });
@@ -86,9 +86,12 @@ export class CollisionSystem {
     for (const h of this.helpers) h.visible = false;
   }
 
-  private checkObstacles(seg: Segment, pD0: number, pD1: number, pMinX: number, pMaxX: number, pMinY: number, pMaxY: number, speed: number): void {
+  private checkObstacles(seg: Segment, delta: number, pD0: number, pD1: number, pMinX: number, pMaxX: number, speed: number): void {
     const p = this.player;
     const box = this.box;
+    const hw = CONFIG.player.halfWidth;
+    const hd = CONFIG.player.halfDepth;
+    const height = p.height;
     for (let i = 0; i < seg.obstacles.length; i++) {
       const ob = seg.obstacles[i];
       if (!ob.active || ob.passed) continue;
@@ -117,18 +120,38 @@ export class CollisionSystem {
         continue;
       }
 
-      const yOverlap = box.maxY > pMinY && box.minY < pMaxY;
-      if (xOverlap && yOverlap) {
+      // The along-track ranges overlap only for part of the frame. Work out
+      // that window and test the player's x/y at its start, middle and end,
+      // so a clean jump that leaves the crate mid-frame is not scored against
+      // the end-of-frame feet height.
+      const rel = delta + ob.dDelta;
+      let fA = 0;
+      let fB = 1;
+      if (rel > 1e-6) {
+        fA = Math.max(0, (box.minD + ob.dDelta - (seg.z - delta + hd)) / rel);
+        fB = Math.min(1, (box.maxD + ob.dDelta - (seg.z - delta - hd)) / rel);
+      }
+      let hit = false;
+      let near = false;
+      const m = CONFIG.collect.nearMissMargin;
+      const v = CONFIG.collect.nearMissVertical;
+      for (let k = 0; k < 3; k++) {
+        const f = k === 0 ? fA : k === 1 ? (fA + fB) * 0.5 : fB;
+        const x = p.prevX + (p.x - p.prevX) * f;
+        const y = p.prevY + (p.y - p.prevY) * f;
+        const xo = box.maxX > x - hw && box.minX < x + hw;
+        const yo = box.maxY > y && box.minY < y + height;
+        if (xo && yo) {
+          hit = true;
+          break;
+        }
+        if (box.maxX + m > x - hw && box.minX - m < x + hw && box.maxY + v > y && box.minY - v < y + height) near = true;
+      }
+      if (hit) {
         this.resolveHit(ob, box, seg);
         continue;
       }
-      if (ob.fatal && !ob.hit) {
-        const m = CONFIG.collect.nearMissMargin;
-        const v = CONFIG.collect.nearMissVertical;
-        const xNear = box.maxX + m > pMinX && box.minX - m < pMaxX;
-        const yNear = box.maxY + v > pMinY && box.minY - v < pMaxY;
-        if (xNear && yNear) ob.nearMissCandidate = true;
-      }
+      if (ob.fatal && !ob.hit && near) ob.nearMissCandidate = true;
     }
   }
 

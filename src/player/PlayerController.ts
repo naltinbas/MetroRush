@@ -174,7 +174,13 @@ export class PlayerController {
 
   // ---- simulation ---------------------------------------------------------
 
+  /** Position at the start of the current frame, for swept collision tests. */
+  prevX = 0;
+  prevY = 0;
+
   update(dt: number, input: InputManager | null, speed: number): void {
+    this.prevX = this.x;
+    this.prevY = this.y;
     this.time += dt;
     const prevX = this.x;
 
