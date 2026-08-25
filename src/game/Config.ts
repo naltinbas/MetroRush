@@ -45,7 +45,7 @@ export const CONFIG = {
 
   world: {
     segmentLength: 24,
-    activeSegmentCount: 10,
+    activeSegmentCount: 12,
     /** Distance the near edge of a segment may travel past the player before it is recycled. */
     recycleBehind: 16,
     /** Near edge of the first segment starts this far behind the player. */
