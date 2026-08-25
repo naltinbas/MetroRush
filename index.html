@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="color-scheme" content="dark" />
+    <title>Metro Rush</title>
+    <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
+  </head>
+  <body>
+    <div id="app"></div>
+
+    <div id="ui">
+      <!-- HUD -->
+      <div id="hud" class="hidden">
+        <div class="hud-left">
+          <div class="hud-stat">
+            <span class="hud-label">Score</span>
+            <span id="hud-score" class="hud-value">0</span>
+          </div>
+          <div class="hud-stat">
+            <span class="hud-label">Distance</span>
+            <span id="hud-distance" class="hud-value small">0 m</span>
+          </div>
+        </div>
+        <div class="hud-right">
+          <div class="hud-stat right">
+            <span class="hud-label">Shards</span>
+            <span id="hud-shards" class="hud-value small shards">0</span>
+          </div>
+          <div class="hud-stat right">
+            <span class="hud-label">Multiplier</span>
+            <span id="hud-mult" class="hud-value small">x1</span>
+          </div>
+        </div>
+        <div id="hud-powerups"></div>
+        <div id="hud-float"></div>
+      </div>
+
+      <!-- Main menu -->
+      <section id="screen-menu" class="screen" aria-label="Main menu">
+        <div class="panel menu-panel">
+          <h1 class="title"><span class="title-metro">Metro</span> <span class="title-rush">Rush</span></h1>
+          <p class="tagline">Courier run through the skyrail maintenance district</p>
+          <div class="button-row">
+            <button id="btn-play" class="btn primary">Play</button>
+            <button id="btn-controls" class="btn">Controls</button>
+          </div>
+          <div class="settings-row">
+            <button id="btn-sound" class="btn small" aria-pressed="true">Sound: On</button>
+            <button id="btn-quality" class="btn small" data-quality="high">Quality: High</button>
+            <button id="btn-theme" class="btn small" data-theme="dusk">Theme: Dusk</button>
+          </div>
+          <div class="sliders">
+            <label>SFX <input id="vol-sfx" type="range" min="0" max="100" value="80" /></label>
+            <label>Music <input id="vol-music" type="range" min="0" max="100" value="50" /></label>
+          </div>
+          <div class="quick-keys">
+            <span><kbd>&larr;</kbd><kbd>&rarr;</kbd> or <kbd>A</kbd><kbd>D</kbd> lanes</span>
+            <span><kbd>&uarr;</kbd> or <kbd>W</kbd> jump</span>
+            <span><kbd>&darr;</kbd> or <kbd>S</kbd> slide</span>
+            <span><kbd>Esc</kbd> / <kbd>P</kbd> pause</span>
+          </div>
+          <div class="records">
+            <div><span class="rec-label">Best score</span><span id="menu-best-score" class="rec-value">0</span></div>
+            <div><span class="rec-label">Best distance</span><span id="menu-best-distance" class="rec-value">0 m</span></div>
+            <div><span class="rec-label">Runs</span><span id="menu-runs" class="rec-value">0</span></div>
+          </div>
+          <p class="hint">Press <kbd>Enter</kbd> to run</p>
+        </div>
+      </section>
+
+      <!-- Pause -->
+      <section id="screen-pause" class="screen hidden" aria-label="Paused">
+        <div class="panel">
+          <h2 class="heading">Paused</h2>
+          <div class="button-col">
+            <button id="btn-resume" class="btn primary">Resume</button>
+            <button id="btn-restart" class="btn">Restart</button>
+            <button id="btn-controls-pause" class="btn">Controls</button>
+            <button id="btn-menu" class="btn">Main menu</button>
+          </div>
+          <div class="settings-row">
+            <button id="btn-sound-pause" class="btn small" aria-pressed="true">Sound: On</button>
+            <button id="btn-quality-pause" class="btn small" data-quality="high">Quality: High</button>
+            <button id="btn-theme-pause" class="btn small" data-theme="dusk">Theme: Dusk</button>
+          </div>
+          <div class="sliders">
+            <label>SFX <input id="vol-sfx-pause" type="range" min="0" max="100" value="80" /></label>
+            <label>Music <input id="vol-music-pause" type="range" min="0" max="100" value="50" /></label>
+          </div>
+          <p class="hint"><kbd>Esc</kbd> or <kbd>P</kbd> to resume</p>
+        </div>
+      </section>
+
+      <!-- Game over -->
+      <section id="screen-gameover" class="screen hidden" aria-label="Run over">
+        <div class="panel">
+          <h2 class="heading">Run over</h2>
+          <p id="go-new-best" class="new-best hidden">New best!</p>
+          <div class="results">
+            <div><span class="rec-label">Score</span><span id="go-score" class="rec-value big">0</span></div>
+            <div><span class="rec-label">Distance</span><span id="go-distance" class="rec-value">0 m</span></div>
+            <div><span class="rec-label">Shards</span><span id="go-shards" class="rec-value">0</span></div>
+            <div><span class="rec-label">Best score</span><span id="go-best-score" class="rec-value">0</span></div>
+            <div><span class="rec-label">Best distance</span><span id="go-best-distance" class="rec-value">0 m</span></div>
+          </div>
+          <p class="hint big">Press <kbd>Enter</kbd> to run again</p>
+          <div class="button-row">
+            <button id="btn-restart-go" class="btn primary">Restart</button>
+            <button id="btn-menu-go" class="btn">Main menu</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- Controls panel (modal over menu or pause) -->
+      <section id="panel-controls" class="modal hidden" role="dialog" aria-modal="true" aria-label="Controls">
+        <div class="panel">
+          <h2 class="heading">Controls</h2>
+          <table class="controls-table">
+            <thead>
+              <tr><th>Action</th><th>Arrows</th><th>WASD</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>Move left</td><td><kbd>&larr;</kbd></td><td><kbd>A</kbd></td></tr>
+              <tr><td>Move right</td><td><kbd>&rarr;</kbd></td><td><kbd>D</kbd></td></tr>
+              <tr><td>Jump</td><td><kbd>&uarr;</kbd></td><td><kbd>W</kbd></td></tr>
+              <tr><td>Slide (or slam down mid-air)</td><td><kbd>&darr;</kbd></td><td><kbd>S</kbd></td></tr>
+              <tr><td>Pause / resume</td><td colspan="2"><kbd>Esc</kbd> or <kbd>P</kbd></td></tr>
+              <tr><td>Restart after a run</td><td colspan="2"><kbd>Enter</kbd> or <kbd>R</kbd></td></tr>
+            </tbody>
+          </table>
+          <ul class="tips">
+            <li>Crates, carts and broken panels: jump. Signs, pipes, drones: slide.</li>
+            <li>Trams, gates, walls and containers block a lane. Change lanes.</li>
+            <li>Cones only trip you up and cost a few points.</li>
+            <li>Passing a hazard by a hair pays a near-miss bonus.</li>
+          </ul>
+          <button id="btn-controls-close" class="btn primary">Close</button>
+        </div>
+      </section>
+
+      <pre id="debug" class="hidden"></pre>
+
+      <section id="error" class="screen hidden" aria-label="Error">
+        <div class="panel">
+          <h2 class="heading">Can't start the game</h2>
+          <p id="error-message"></p>
+          <p class="hint">Metro Rush needs WebGL. Try a current version of Chrome, Firefox, Edge or Safari with hardware acceleration enabled.</p>
+        </div>
+      </section>
+    </div>
+
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
